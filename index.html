@@ -2504,6 +2504,18 @@ function closeSidebar() {
 // ═══════════════════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════════════════
+function getCatEmoji(cat) {
+  const map = {
+    anel:        '💍',
+    brinco:      '✨',
+    colar:       '📿',
+    pulseira:    '🔗',
+    tornozeleira:'🦶',
+    pingente:    '🏷️',
+  };
+  return map[(cat||'').toLowerCase()] || '💎';
+}
+
 function fmtBRL(v) {
   return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
@@ -2848,8 +2860,9 @@ function renderProdutos() {
 }
 
 function viewProduto(ref) {
+  try {
   const p = cache.produtos.find(x=>x.ref===ref);
-  if(!p) return;
+  if(!p) { toast('Produto não encontrado: '+ref, 'error'); return; }
   const stocks = getAllStocks();
   const qty = stocks[ref]||0;
   const isAdmin = currentUser.role==='admin';
@@ -2933,6 +2946,10 @@ function viewProduto(ref) {
     `:''}`;
 
   openModal('modal-view-produto');
+  } catch(e) {
+    toast('Erro ao abrir produto: ' + e.message, 'error', 6000);
+    console.error('viewProduto error:', e);
+  }
 }
 
 function setGalleryMain(src, thumb) {
