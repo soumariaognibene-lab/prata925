@@ -1637,56 +1637,131 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         </div>
       </div>
 
-      <!-- CARD: INFORMAÇÕES DA LOJA -->
-      <div class="card" style="max-width:500px;margin-bottom:20px">
-        <div class="card-header"><span class="card-title">🏪 Informações da Loja</span></div>
-        <div class="card-body">
+      <!-- ABAS -->
+      <div class="tabs" style="max-width:600px;margin-bottom:24px">
+        <button class="tab-btn active" id="cfg-tab-geral"   onclick="switchCfgTab('geral')">⚙️ Geral</button>
+        <button class="tab-btn"        id="cfg-tab-banco"   onclick="switchCfgTab('banco')">🗄️ Banco de Dados</button>
+      </div>
 
-          <!-- Logo upload -->
-          <div class="field-group" style="margin-bottom:20px">
-            <label class="field-label">Logo / Foto da Loja</label>
-            <div style="display:flex;align-items:center;gap:16px">
-              <div id="config-logo-preview" style="width:72px;height:72px;border-radius:14px;background:var(--charcoal);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;flex-shrink:0;border:2px solid rgba(201,168,76,0.2)">◆</div>
-              <div style="flex:1">
-                <div class="drop-zone" style="padding:14px 16px" onclick="document.getElementById('config-logo-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleConfigLogoDrop(event)">
-                  <div style="font-size:13px;color:var(--silver)"><strong style="color:var(--gold-dark)">Clique ou arraste</strong> para trocar<br><span style="font-size:11px">JPG, PNG, WEBP • Câmera suportada</span></div>
-                  <input type="file" id="config-logo-input" accept="image/*" capture="environment" style="display:none" onchange="handleConfigLogoInput(event)">
+      <!-- ABA: GERAL -->
+      <div id="cfg-panel-geral">
+        <!-- CARD: INFORMAÇÕES DA LOJA -->
+        <div class="card" style="max-width:500px;margin-bottom:20px">
+          <div class="card-header"><span class="card-title">🏪 Informações da Loja</span></div>
+          <div class="card-body">
+            <div class="field-group" style="margin-bottom:20px">
+              <label class="field-label">Logo / Foto da Loja</label>
+              <div style="display:flex;align-items:center;gap:16px">
+                <div id="config-logo-preview" style="width:72px;height:72px;border-radius:14px;background:var(--charcoal);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;flex-shrink:0;border:2px solid rgba(201,168,76,0.2)">◆</div>
+                <div style="flex:1">
+                  <div class="drop-zone" style="padding:14px 16px" onclick="document.getElementById('config-logo-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleConfigLogoDrop(event)">
+                    <div style="font-size:13px;color:var(--silver)"><strong style="color:var(--gold-dark)">Clique ou arraste</strong> para trocar<br><span style="font-size:11px">JPG, PNG, WEBP • Câmera suportada</span></div>
+                    <input type="file" id="config-logo-input" accept="image/*" capture="environment" style="display:none" onchange="handleConfigLogoInput(event)">
+                  </div>
+                  <button class="btn btn-outline btn-sm" style="margin-top:8px;width:100%" onclick="removeConfigLogo()">🗑 Remover foto</button>
                 </div>
-                <button class="btn btn-outline btn-sm" style="margin-top:8px;width:100%" onclick="removeConfigLogo()">🗑 Remover foto</button>
               </div>
             </div>
+            <div class="field-group">
+              <label class="field-label">Nome da Loja</label>
+              <input class="field-input" id="config-nome-loja" placeholder="Ex: Prata 925" maxlength="40">
+              <span class="field-hint">Aparece na sidebar e no cabeçalho do sistema</span>
+            </div>
+            <button class="btn btn-gold" style="margin-top:20px;width:100%" onclick="saveConfigLoja()">💾 Salvar Informações da Loja</button>
           </div>
-
-          <!-- Nome da loja -->
-          <div class="field-group">
-            <label class="field-label">Nome da Loja</label>
-            <input class="field-input" id="config-nome-loja" placeholder="Ex: Prata 925" maxlength="40">
-            <span class="field-hint">Aparece na sidebar e no cabeçalho do sistema</span>
-          </div>
-
-          <button class="btn btn-gold" style="margin-top:20px;width:100%" onclick="saveConfigLoja()">💾 Salvar Informações da Loja</button>
         </div>
-      </div>
 
-      <!-- CARD: MARGEM -->
-      <div class="card" style="max-width:500px">
-        <div class="card-header"><span class="card-title">📊 Margem Padrão</span></div>
-        <div class="card-body">
-          <div class="field-group">
-            <label class="field-label">Multiplicador Global Padrão</label>
-            <input class="field-input" type="number" step="0.1" id="config-mult" value="2.6">
-            <span class="field-hint">Usado ao criar novos produtos (ex: 2.6 = 160% de margem)</span>
+        <!-- CARD: MARGEM -->
+        <div class="card" style="max-width:500px">
+          <div class="card-header"><span class="card-title">📊 Margem Padrão</span></div>
+          <div class="card-body">
+            <div class="field-group">
+              <label class="field-label">Multiplicador Global Padrão</label>
+              <input class="field-input" type="number" step="0.1" id="config-mult" value="2.6">
+              <span class="field-hint">Usado ao criar novos produtos (ex: 2.6 = 160% de margem)</span>
+            </div>
+            <div style="margin-top:16px">
+              <div class="margin-display" id="config-preview">
+                <div class="margin-item"><div class="val">R$ 100</div><div class="lbl">Custo</div></div>
+                <div class="margin-arrow">→</div>
+                <div class="margin-item"><div class="val" id="config-preview-val">R$ 259</div><div class="lbl">Sugerido</div></div>
+              </div>
+            </div>
+            <button class="btn btn-gold" style="margin-top:20px" onclick="saveConfig()">Salvar Configurações</button>
           </div>
-          <div style="margin-top:16px">
-            <div class="margin-display" id="config-preview">
-              <div class="margin-item"><div class="val">R$ 100</div><div class="lbl">Custo</div></div>
-              <div class="margin-arrow">→</div>
-              <div class="margin-item"><div class="val" id="config-preview-val">R$ 259</div><div class="lbl">Sugerido</div></div>
+        </div>
+      </div><!-- /cfg-panel-geral -->
+
+      <!-- ABA: BANCO DE DADOS -->
+      <div id="cfg-panel-banco" style="display:none;max-width:600px">
+
+        <!-- CARD: EXPORTAR -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="card-title">📥 Exportar Dados</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--charcoal-soft);margin-bottom:16px">
+              Baixe uma planilha completa do banco com todas as tabelas. Útil como backup ou para análise externa.
+            </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <button class="btn btn-outline" onclick="exportarTabela('produtos')">💍 Exportar Produtos</button>
+              <button class="btn btn-outline" onclick="exportarTabela('vendas')">💰 Exportar Vendas</button>
+              <button class="btn btn-outline" onclick="exportarTabela('movimentacoes')">↔️ Exportar Movimentações</button>
+              <button class="btn btn-gold"    onclick="exportarTudo()">📦 Exportar Tudo (ZIP)</button>
             </div>
           </div>
-          <button class="btn btn-gold" style="margin-top:20px" onclick="saveConfig()">Salvar Configurações</button>
         </div>
-      </div>
+
+        <!-- CARD: ESTATÍSTICAS DO BANCO -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="card-title">📊 Resumo do Banco</span></div>
+          <div class="card-body">
+            <div id="db-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">
+              <div style="padding:14px;background:var(--cream);border-radius:10px">
+                <div style="font-size:22px;font-weight:700;color:var(--charcoal)" id="db-count-produtos">—</div>
+                <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Produtos</div>
+              </div>
+              <div style="padding:14px;background:var(--cream);border-radius:10px">
+                <div style="font-size:22px;font-weight:700;color:var(--charcoal)" id="db-count-vendas">—</div>
+                <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Vendas</div>
+              </div>
+              <div style="padding:14px;background:var(--cream);border-radius:10px">
+                <div style="font-size:22px;font-weight:700;color:var(--charcoal)" id="db-count-movs">—</div>
+                <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Movimentações</div>
+              </div>
+            </div>
+            <button class="btn btn-outline" style="margin-top:14px;width:100%" onclick="atualizarDbStats()">🔄 Atualizar contagens</button>
+          </div>
+        </div>
+
+        <!-- CARD: RESET — ZONA DE PERIGO -->
+        <div class="card" style="border:1.5px solid rgba(192,57,43,0.3)">
+          <div class="card-header" style="background:rgba(192,57,43,0.06)">
+            <span class="card-title" style="color:var(--danger)">⚠️ Zona de Perigo — Reset de Dados</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--charcoal-soft);margin-bottom:20px;line-height:1.6">
+              Estas ações são <strong>irreversíveis</strong>. Os dados apagados <strong>não podem ser recuperados</strong>. Exporte antes de continuar.
+            </p>
+
+            <!-- Reset individual -->
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+              <button class="btn btn-outline" style="border-color:rgba(192,57,43,0.4);color:var(--danger);justify-content:flex-start;gap:10px"
+                onclick="abrirModalReset('vendas_movs')">
+                🗑 Apagar Vendas + Movimentações <span style="margin-left:auto;font-size:11px;color:var(--silver)">mantém produtos</span>
+              </button>
+              <button class="btn btn-outline" style="border-color:rgba(192,57,43,0.4);color:var(--danger);justify-content:flex-start;gap:10px"
+                onclick="abrirModalReset('produtos')">
+                🗑 Apagar Produtos <span style="margin-left:auto;font-size:11px;color:var(--silver)">requer zerar movs antes</span>
+              </button>
+              <button class="btn btn-danger" style="justify-content:flex-start;gap:10px"
+                onclick="abrirModalReset('tudo')">
+                💥 Reset Total — Apagar Tudo <span style="margin-left:auto;font-size:11px;opacity:0.8">vendas + movs + produtos</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /cfg-panel-banco -->
     </div>
 
   </main>
@@ -1949,6 +2024,28 @@ textarea.field-input { resize: vertical; min-height: 80px; }
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-cancelar-venda')">Voltar</button>
       <button class="btn btn-danger" onclick="confirmarCancelamento()">⚠️ Confirmar Cancelamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RESET BANCO -->
+<div class="modal-overlay" id="modal-reset-banco">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="background:rgba(192,57,43,0.08)">
+      <span class="modal-title" style="color:var(--danger)" id="reset-modal-title">⚠️ Confirmar Reset</span>
+      <button class="modal-close" onclick="closeModal('modal-reset-banco')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="reset-modal-desc" style="font-size:13px;color:var(--charcoal-soft);line-height:1.6;margin-bottom:16px"></p>
+      <div style="background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.2);border-radius:10px;padding:14px;margin-bottom:16px">
+        <p style="font-size:12px;font-weight:600;color:var(--danger);margin-bottom:8px">Para confirmar, digite RESETAR abaixo:</p>
+        <input class="field-input" id="reset-confirm-input" placeholder="RESETAR" oninput="checkResetConfirm()"
+          style="font-family:monospace;letter-spacing:2px;text-transform:uppercase">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-reset-banco')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirmar-reset" disabled onclick="executarReset()">💥 Confirmar Reset</button>
     </div>
   </div>
 </div>
@@ -3578,6 +3675,161 @@ function renderConfig() {
   } else {
     preview.innerHTML = '◆';
   }
+
+  // Atualizar stats do banco ao abrir
+  atualizarDbStats();
+}
+
+// ── Abas de configuração ─────────────────────────────────────
+function switchCfgTab(tab) {
+  document.getElementById('cfg-panel-geral').style.display  = tab==='geral'  ? '' : 'none';
+  document.getElementById('cfg-panel-banco').style.display  = tab==='banco'  ? '' : 'none';
+  document.getElementById('cfg-tab-geral').classList.toggle('active', tab==='geral');
+  document.getElementById('cfg-tab-banco').classList.toggle('active', tab==='banco');
+  if(tab==='banco') atualizarDbStats();
+}
+
+// ── Estatísticas do banco ─────────────────────────────────────
+function atualizarDbStats() {
+  const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  el('db-count-produtos', cache.produtos.length);
+  el('db-count-vendas',   cache.vendas.length);
+  el('db-count-movs',     cache.movimentacoes.length);
+}
+
+// ── Exportar tabela individual como CSV ──────────────────────
+function exportarTabela(tabela) {
+  let dados, nome;
+  if(tabela==='produtos') {
+    dados = cache.produtos.map(p=>({
+      ref: p.ref, nome: p.nome, cat: p.cat, custo: p.custo, venda: p.venda,
+      mult: p.mult, peso: p.peso||'', descricao: p.descricao||'',
+      status: p.status, foto: p.foto||''
+    }));
+    nome = 'prata925_produtos';
+  } else if(tabela==='vendas') {
+    dados = cache.vendas.map(v=>({
+      id: v.id, data: v.data, ref: v.ref, qtd: v.qtd,
+      cliente: v.cliente||'', canal: v.canal,
+      valor: v.valor, custo: v.custo, lucro: v.lucro,
+      status: v.status,
+      cancelada_em: v.cancelada_em||'',
+      motivo_cancelamento: v.motivo_cancelamento||'',
+      obs: v.obs||''
+    }));
+    nome = 'prata925_vendas';
+  } else if(tabela==='movimentacoes') {
+    dados = cache.movimentacoes.map(m=>({
+      id: m.id, data: m.data, ref: m.ref,
+      tipo: m.tipo, sinal: m.sinal, qtd: m.qtd,
+      obs: m.obs||'', origem: m.origem||''
+    }));
+    nome = 'prata925_movimentacoes';
+  } else return;
+
+  if(!dados.length) { toast('Nenhum dado para exportar', 'warning'); return; }
+
+  const headers = Object.keys(dados[0]);
+  const esc = v => {
+    const s = String(v==null?'':v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+  const csv = [headers.join(','), ...dados.map(r=>headers.map(h=>esc(r[h])).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `${nome}_${today()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`✅ ${dados.length} registros exportados`);
+}
+
+// ── Exportar tudo (3 arquivos CSV em sequência) ──────────────
+function exportarTudo() {
+  const total = cache.produtos.length + cache.vendas.length + cache.movimentacoes.length;
+  if(!total) { toast('Banco vazio — nada para exportar', 'warning'); return; }
+  exportarTabela('produtos');
+  setTimeout(() => exportarTabela('vendas'),         400);
+  setTimeout(() => exportarTabela('movimentacoes'),  800);
+  setTimeout(() => toast(`📦 3 arquivos CSV baixados!`), 1200);
+}
+
+// ── Modal de reset ────────────────────────────────────────────
+let _resetTipo = null;
+
+const RESET_INFO = {
+  vendas_movs: {
+    titulo:  '⚠️ Apagar Vendas + Movimentações',
+    desc:    'Serão apagados <strong>todos os registros de vendas e movimentações</strong>. Os produtos permanecem intactos. O estoque voltará a zero pois depende das movimentações.',
+  },
+  produtos: {
+    titulo:  '⚠️ Apagar Produtos',
+    desc:    'Serão apagados <strong>todos os produtos</strong>. Atenção: isso só deve ser feito <strong>após</strong> zerar vendas e movimentações, caso contrário elas ficarão órfãs.',
+  },
+  tudo: {
+    titulo:  '💥 Reset Total — Apagar Tudo',
+    desc:    'Serão apagados <strong>todos os produtos, vendas e movimentações</strong>. O sistema voltará ao estado inicial vazio. Esta ação é <strong>irreversível</strong>.',
+  }
+};
+
+function abrirModalReset(tipo) {
+  _resetTipo = tipo;
+  const info = RESET_INFO[tipo];
+  document.getElementById('reset-modal-title').textContent = info.titulo;
+  document.getElementById('reset-modal-desc').innerHTML    = info.desc;
+  document.getElementById('reset-confirm-input').value     = '';
+  document.getElementById('btn-confirmar-reset').disabled  = true;
+  openModal('modal-reset-banco');
+}
+
+function checkResetConfirm() {
+  const val = document.getElementById('reset-confirm-input').value.trim().toUpperCase();
+  document.getElementById('btn-confirmar-reset').disabled = val !== 'RESETAR';
+}
+
+async function executarReset() {
+  const val = document.getElementById('reset-confirm-input').value.trim().toUpperCase();
+  if(val !== 'RESETAR') return;
+  if(!_resetTipo) return;
+
+  closeModal('modal-reset-banco');
+  showLoading(true);
+
+  try {
+    // Exportar antes de apagar (segurança automática)
+    if(_resetTipo === 'vendas_movs' || _resetTipo === 'tudo') {
+      if(cache.vendas.length)         exportarTabela('vendas');
+      if(cache.movimentacoes.length)  exportarTabela('movimentacoes');
+    }
+    if(_resetTipo === 'produtos' || _resetTipo === 'tudo') {
+      if(cache.produtos.length) exportarTabela('produtos');
+    }
+
+    // Aguardar downloads iniciarem
+    await new Promise(r => setTimeout(r, 600));
+
+    // Executar apagamento via RPC de reset
+    await supa.rpc('reset_dados', { p_tipo: _resetTipo });
+
+    // Recarregar cache
+    await loadAll();
+    refreshAllPages();
+    atualizarDbStats();
+
+    const msgs = {
+      vendas_movs: 'Vendas e movimentações apagadas. Backup CSV foi baixado automaticamente.',
+      produtos:    'Produtos apagados. Backup CSV foi baixado automaticamente.',
+      tudo:        'Reset total concluído. Backup CSVs foram baixados automaticamente.'
+    };
+    toast('✅ ' + msgs[_resetTipo], 'warning', 6000);
+  } catch(e) {
+    toast('Erro no reset: ' + e.message, 'error', 7000);
+  }
+
+  showLoading(false);
+  _resetTipo = null;
 }
 
 async function saveConfig() {
