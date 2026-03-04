@@ -2369,8 +2369,8 @@ function showPage(p) {
 }
 
 // Atualiza todas as páginas após qualquer alteração de dados
-function refreshAllPages() {
-  renderDashboard();
+async function refreshAllPages() {
+  await renderDashboard();
   renderProdutos();
   renderCategFilters();
   renderEstoque();
@@ -2560,19 +2560,19 @@ async function renderDashboard() {
     valorVenda += q * (p.venda||0);
   });
 
-  // KPIs (date-filtered) via RPC; fallback to cache if RPC fails
-  let kpis = null;
-  try {
-    kpis = await api.rpc('dashboard_kpis', { p_from: from, p_to: to });
-  } catch (e) {
-    console.error('dashboard_kpis RPC falhou, usando fallback do cache:', e);
-    const vendasPeriodo = cache.vendas.filter(v => v.status !== 'cancelada' && v.data >= from && v.data <= to);
-    const faturamento = vendasPeriodo.reduce((s,v)=>s+(v.valor||0),0);
-    const lucro = vendasPeriodo.reduce((s,v)=>s+(v.lucro||0),0);
-    const itens = vendasPeriodo.reduce((s,v)=>s+(v.qtd||1),0);
-    const qtd = vendasPeriodo.length;
-    kpis = { faturamento, lucro, itens_vendidos: itens, qtd_vendas: qtd, ticket_medio: qtd? faturamento/qtd : 0 };
-  }
+  // KPIs (date-filtered) — calculados do cache local
+  const vendasPeriodo = cache.vendas.filter(v => v.status !== 'cancelada' && v.data >= from && v.data <= to);
+  const faturamento_calc = vendasPeriodo.reduce((s,v)=>s+(v.valor||0),0);
+  const lucro_calc       = vendasPeriodo.reduce((s,v)=>s+(v.lucro||0),0);
+  const itens_calc       = vendasPeriodo.reduce((s,v)=>s+(v.qtd||1),0);
+  const qtd_calc         = vendasPeriodo.length;
+  const kpis = {
+    faturamento:    faturamento_calc,
+    lucro:          lucro_calc,
+    itens_vendidos: itens_calc,
+    qtd_vendas:     qtd_calc,
+    ticket_medio:   qtd_calc ? faturamento_calc / qtd_calc : 0
+  };
 
   const faturamento = Number(kpis.faturamento||0);
   const lucro = Number(kpis.lucro||0);
@@ -3414,10 +3414,11 @@ async function saveMov() {
   const sinal = (tipo==='venda' || tipo==='troca') ? -1 : 1;
 
   const mov = {
-    id:     genId(),
-    data,   ref,   tipo,   sinal,  qtd,
-    obs:    document.getElementById('m-obs').value.trim() || null,
-    origem: 'manual'
+    id:      genId(),
+    data,    ref,    tipo,   sinal,  qtd,
+    obs:     document.getElementById('m-obs').value.trim() || null,
+    origem:  'manual',
+    user_id: currentUser?.id || null
   };
   try {
     showLoading(true);
