@@ -2129,9 +2129,11 @@ const supaAuth = {
 // ─── REST API ─────────────────────────────────────────
 const supa = {
   async select(table, filters={}, opts={}) {
-    let url = `${SUPA_URL}/rest/v1/${table}?select=*&order=created_at.asc`;
+    // Ordenação segura por tabela: produtos usa ref (PK), demais usam created_at
+    const defaultOrder = table === 'produtos' ? 'ref.asc' : 'created_at.asc';
+    let url = `${SUPA_URL}/rest/v1/${table}?select=*&order=${defaultOrder}`;
     Object.entries(filters).forEach(([k,v]) => url += `&${k}=eq.${encodeURIComponent(v)}`);
-    if(opts.order) url = url.replace('order=created_at.asc', `order=${opts.order}`);
+    if(opts.order) url = url.replace(`order=${defaultOrder}`, `order=${opts.order}`);
     const r = await fetch(url, { headers: _headers() });
     if(!r.ok) throw new Error(await r.text());
     return r.json();
@@ -2214,20 +2216,31 @@ const cache = {
 async function loadAll() {
   showLoading(true);
   try {
+    // Carregar cada tabela independentemente para isolar erros
+    const safeSelect = async (table) => {
+      try {
+        return await supa.select(table);
+      } catch(e) {
+        console.error(`Erro ao carregar ${table}:`, e.message);
+        toast(`⚠️ Erro ao carregar ${table}: ${e.message}`, 'error', 8000);
+        return [];
+      }
+    };
+
     const [prods, movs, vendas, cfgArr] = await Promise.all([
-      supa.select('produtos'),
-      supa.select('movimentacoes'),
-      supa.select('vendas'),
-      supa.select('config')
+      safeSelect('produtos'),
+      safeSelect('movimentacoes'),
+      safeSelect('vendas'),
+      safeSelect('config')
     ]);
+
     cache.produtos = prods.map(p => ({...p,
-      // compatibilidade com campos antigos e novos
       custo: p.custo,
       venda: p.venda || p.preco_venda,
       mult:  p.mult  || p.multiplicador || 2.6,
       cat:   p.cat   || p.categoria,
       foto:  p.foto  || p.foto_principal_url,
-      galeria:        Array.isArray(p.galeria)        ? p.galeria        : (p.galeria_urls || []),
+      galeria:          Array.isArray(p.galeria)          ? p.galeria          : (p.galeria_urls || []),
       referencias_urls: Array.isArray(p.referencias_urls) ? p.referencias_urls : [],
       desc:  p.descricao || ''
     }));
@@ -2235,14 +2248,15 @@ async function loadAll() {
     cache.vendas = vendas;
     const cfg = cfgArr[0] || {};
     cache.config = {
-      mult:       cfg.mult || cfg.multiplicador || 2.6,
+      mult:          cfg.mult || cfg.multiplicador || 2.6,
       multiplicador: cfg.mult || cfg.multiplicador || 2.6,
-      nome_loja:  cfg.nome_loja || 'Prata 925',
-      logo_url:   cfg.logo_url || cfg.logo_loja || null,
-      logo_loja:  cfg.logo_url || cfg.logo_loja || null
+      nome_loja:     cfg.nome_loja || 'Prata 925',
+      logo_url:      cfg.logo_url || cfg.logo_loja || null,
+      logo_loja:     cfg.logo_url || cfg.logo_loja || null
     };
   } catch(e) {
-    toast('Erro ao carregar dados: '+e.message, 'error', 6000);
+    toast('Erro crítico ao carregar dados: '+e.message, 'error', 8000);
+    console.error('loadAll falhou:', e);
   }
   showLoading(false);
 }
@@ -2261,6 +2275,7 @@ function showLoading(show) {
 
 let currentUser = null;
 let currentPage = 'dashboard';
+let activeCategFilter = null;
 // state
 let tempMainPhoto = null;
 let tempGallery = [];
@@ -2758,7 +2773,8 @@ function renderProdutos() {
   );
   const isAdmin = currentUser.role==='admin';
 
-  document.getElementById('produtos-count').textContent = `${filtered.length} produto${filtered.length!==1?'s':''} encontrado${filtered.length!==1?'s':''}`;
+  const countEl = document.getElementById('produtos-count');
+  if(countEl) countEl.textContent = `${filtered.length} produto${filtered.length!==1?'s':''} encontrado${filtered.length!==1?'s':''}`;
 
   const tbody = document.getElementById('tbody-produtos');
   const empty = document.getElementById('empty-produtos');
