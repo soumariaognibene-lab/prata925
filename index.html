@@ -1348,6 +1348,20 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <h2>Visão Geral</h2>
           <p id="dashboard-date">Carregando...</p>
         </div>
+        <div class="page-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select class="field-input" id="dashPreset" style="width:180px">
+            <option value="today">Hoje</option>
+            <option value="7d" selected>Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="month">Mês atual</option>
+            <option value="year">Ano atual</option>
+            <option value="custom">Personalizado</option>
+          </select>
+          <input type="date" class="field-input" id="dashFrom" style="width:160px;display:none">
+          <input type="date" class="field-input" id="dashTo" style="width:160px;display:none">
+          <button class="btn btn-outline" id="dashApply">Aplicar</button>
+        </div>
+
       </div>
       <div class="stats-grid" id="stats-grid"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;" id="dash-grid-2">
@@ -2464,43 +2478,120 @@ function getAllStocks() {
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
-function renderDashboard() {
+async function renderDashboard() {
   const isAdmin = currentUser.role==='admin';
   if(!isAdmin) { showPage('distribuidor'); return; }
 
-  document.getElementById('dashboard-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  document.getElementById('btn-new-produto') && (document.getElementById('btn-new-produto').style.display = isAdmin ? '' : 'none');
+  // Init dashboard filter UI (once)
+  if(!window.__dashInit) {
+    window.__dashInit = true;
 
+    const presetEl = document.getElementById('dashPreset');
+    const fromEl = document.getElementById('dashFrom');
+    const toEl = document.getElementById('dashTo');
+    const applyEl = document.getElementById('dashApply');
+
+    function iso(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+
+    function setFromTo(preset){
+      const now = new Date();
+      let from = new Date(now), to = new Date(now);
+
+      if(preset==='today'){
+        // already today
+      } else if(preset==='7d'){
+        from.setDate(from.getDate()-6);
+      } else if(preset==='30d'){
+        from.setDate(from.getDate()-29);
+      } else if(preset==='month'){
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if(preset==='year'){
+        from = new Date(now.getFullYear(), 0, 1);
+      }
+
+      // Only show date inputs when custom
+      const isCustom = preset==='custom';
+      fromEl.style.display = isCustom ? '' : 'none';
+      toEl.style.display = isCustom ? '' : 'none';
+
+      if(!isCustom){
+        fromEl.value = iso(from);
+        toEl.value = iso(to);
+      } else {
+        // if empty, seed with last 7d
+        if(!fromEl.value || !toEl.value){
+          const f = new Date(now); f.setDate(f.getDate()-6);
+          fromEl.value = iso(f);
+          toEl.value = iso(now);
+        }
+      }
+    }
+
+    presetEl.addEventListener('change', () => setFromTo(presetEl.value));
+    applyEl.addEventListener('click', () => renderDashboard());
+
+    // default preset
+    presetEl.value = presetEl.value || '7d';
+    setFromTo(presetEl.value);
+  }
+
+  const presetEl = document.getElementById('dashPreset');
+  const fromEl = document.getElementById('dashFrom');
+  const toEl = document.getElementById('dashTo');
+
+  const p = presetEl ? presetEl.value : '7d';
+  const from = (fromEl && fromEl.value) ? fromEl.value : thisMonth()+'-01';
+  const to = (toEl && toEl.value) ? toEl.value : new Date().toISOString().slice(0,10);
+
+  // Header label (range)
+  const fromLabel = fmtDate(from);
+  const toLabel = fmtDate(to);
+  document.getElementById('dashboard-date').textContent = `${fromLabel} → ${toLabel}`;
+
+  // Inventory (not date-filtered)
   const prods = cache.produtos;
-  const movs = cache.movimentacoes;
-  const vendas = cache.vendas;
   const stocks = getAllStocks();
-  const month = thisMonth();
 
-  // Stats
   let totalPecas = 0, valorCusto = 0, valorVenda = 0;
   prods.forEach(p => {
     const q = stocks[p.ref] || 0;
     totalPecas += q;
-    valorCusto += q * p.custo;
-    valorVenda += q * p.venda;
+    valorCusto += q * (p.custo||0);
+    valorVenda += q * (p.venda||0);
   });
 
-  const vendasMes = vendas.filter(v => v.data.startsWith(month) && v.status !== 'cancelada');
-  const totalVendasMes = vendasMes.reduce((s,v) => s+(v.valor||0), 0);
-  const lucroMes = vendasMes.reduce((s,v) => s+(v.lucro||0), 0);
+  // KPIs (date-filtered) via RPC; fallback to cache if RPC fails
+  let kpis = null;
+  try {
+    kpis = await api.rpc('dashboard_kpis', { p_from: from, p_to: to });
+  } catch (e) {
+    console.error('dashboard_kpis RPC falhou, usando fallback do cache:', e);
+    const vendasPeriodo = cache.vendas.filter(v => v.status !== 'cancelada' && v.data >= from && v.data <= to);
+    const faturamento = vendasPeriodo.reduce((s,v)=>s+(v.valor||0),0);
+    const lucro = vendasPeriodo.reduce((s,v)=>s+(v.lucro||0),0);
+    const itens = vendasPeriodo.reduce((s,v)=>s+(v.qtd||1),0);
+    const qtd = vendasPeriodo.length;
+    kpis = { faturamento, lucro, itens_vendidos: itens, qtd_vendas: qtd, ticket_medio: qtd? faturamento/qtd : 0 };
+  }
+
+  const faturamento = Number(kpis.faturamento||0);
+  const lucro = Number(kpis.lucro||0);
+  const qtdVendas = Number(kpis.qtd_vendas||0);
+  const itensVendidos = Number(kpis.itens_vendidos||0);
+  const ticket = Number(kpis.ticket_medio||0);
 
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card"><span class="stat-icon">💍</span><div class="stat-value">${totalPecas}</div><div class="stat-label">Peças em Estoque</div></div>
     <div class="stat-card blue"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(valorCusto)}</div><div class="stat-label">Valor em Custo</div></div>
     <div class="stat-card"><span class="stat-icon">🏷️</span><div class="stat-value">${fmtBRL(valorVenda)}</div><div class="stat-label">Valor em Venda</div></div>
-    <div class="stat-card green"><span class="stat-icon">📈</span><div class="stat-value">${fmtBRL(totalVendasMes)}</div><div class="stat-label">Vendas do Mês</div><div class="stat-sub">+${vendasMes.length} transações</div></div>
-    <div class="stat-card orange"><span class="stat-icon">✨</span><div class="stat-value">${fmtBRL(lucroMes)}</div><div class="stat-label">Lucro do Mês</div></div>
+    <div class="stat-card green"><span class="stat-icon">📈</span><div class="stat-value">${fmtBRL(faturamento)}</div><div class="stat-label">Vendas no Período</div><div class="stat-sub">+${qtdVendas} transações • ${itensVendidos} itens</div></div>
+    <div class="stat-card orange"><span class="stat-icon">✨</span><div class="stat-value">${fmtBRL(lucro)}</div><div class="stat-label">Lucro no Período</div><div class="stat-sub">Ticket médio: ${fmtBRL(ticket)}</div></div>
   `;
 
-  // Canal chart — apenas vendas OK
+  // Canal chart — vendas OK no período
+  const vendasOkPeriodo = cache.vendas.filter(v => v.status !== 'cancelada' && v.data >= from && v.data <= to);
   const canais = {};
-  vendas.filter(v=>v.status!=='cancelada').forEach(v => {
+  vendasOkPeriodo.forEach(v => {
     const c = (v.canal||'outro').toLowerCase();
     canais[c] = (canais[c]||0)+(v.valor||0);
   });
@@ -2508,15 +2599,15 @@ function renderDashboard() {
   const canalColors = {instagram:'#C13584', whatsapp:'#25D366', presencial:'#C9A84C', outro:'#8C8C8C'};
   document.getElementById('dash-canal-chart').innerHTML = Object.entries(canais).length ? `
     <div class="bar-chart">
-      ${Object.entries(canais).map(([k,v])=>`
+      ${Object.entries(canais).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
         <div class="bar-row">
           <span class="bar-label">${k}</span>
-          <div class="bar-track"><div class="bar-fill" style="width:${(v/totalCanal*100).toFixed(0)}%;background:${canalColors[k]||'var(--gold)'}"></div></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${totalCanal? (v/totalCanal*100).toFixed(0):0}%;background:${canalColors[k]||'var(--gold)'}"></div></div>
           <span class="bar-value">${fmtBRL(v)}</span>
         </div>`).join('')}
-    </div>` : '<div class="empty-state"><div class="emoji">📊</div><p>Nenhuma venda ainda</p></div>';
+    </div>` : '<div class="empty-state"><div class="emoji">📊</div><p>Nenhuma venda no período</p></div>';
 
-  // Low stock
+  // Low stock (not date-filtered)
   const lowStock = prods.filter(p => (stocks[p.ref]||0) <= 2);
   document.getElementById('dash-low-stock').innerHTML = lowStock.length ? `
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -2527,33 +2618,28 @@ function renderDashboard() {
         </div>`).join('')}
     </div>` : '<div style="text-align:center;padding:20px;color:var(--success);font-size:14px">✅ Todos os produtos com estoque adequado</div>';
 
-  // Recent sales — mostra todas mas marca canceladas
-  const recent = [...vendas].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  // Recent sales — no período (inclui canceladas com risco)
+  const recent = [...cache.vendas]
+    .filter(v => v.data >= from && v.data <= to)
+    .sort((a,b)=> (b.data||'').localeCompare(a.data||''))
+    .slice(0,5);
+
   document.getElementById('dash-sales-table').innerHTML = recent.length ? `
     <table><thead><tr><th>Data</th><th>Produto</th><th>Canal</th><th>Valor</th><th>Lucro</th></tr></thead>
     <tbody>${recent.map(v=>{
-      const p = prods.find(x=>x.ref===v.ref)||{};
+      const prod = prods.find(x=>x.ref===v.ref)||{};
       const isCanceled = v.status === 'cancelada';
       const canal = (v.canal||'outro').toLowerCase();
       return `<tr style="${isCanceled?'opacity:0.5;text-decoration:line-through':''}">
         <td>${fmtDate(v.data)}</td>
-        <td><div class="product-cell"><div class="product-thumb">${getCatEmoji(p.cat)}</div><div><div class="product-name">${p.nome||v.ref}</div><div class="product-ref">${v.ref}</div></div></div></td>
+        <td><div class="product-cell"><div class="product-thumb">${getCatEmoji(prod.cat)}</div><div><div class="product-name">${prod.nome||v.ref}</div><div class="product-ref">${v.ref}</div></div></div></td>
         <td><span class="badge badge-${canal}">${v.canal||'—'}</span></td>
         <td style="font-weight:600">${fmtBRL(v.valor||0)}</td>
         <td style="color:${isCanceled?'var(--silver)':'var(--success)'};font-weight:600">${fmtBRL(v.lucro||0)}</td>
       </tr>`;
-    }).join('')}</tbody></table>` : '<div class="empty-state"><div class="emoji">💰</div><p>Sem vendas recentes</p></div>';
+    }).join('')}</tbody></table>` : '<div class="empty-state"><div class="emoji">💰</div><p>Sem vendas no período</p></div>';
 }
 
-// ═══════════════════════════════════════════════════════
-// PRODUTOS
-// ═══════════════════════════════════════════════════════
-let activeCategFilter = '';
-
-function getCatEmoji(cat) {
-  const e = {anel:'💍',brinco:'👂',colar:'📿',pulseira:'🔮',tornozeleira:'🦶',pingente:'⭐'};
-  return e[cat] || '💎';
-}
 
 function renderCategFilters() {
   const cats = ['','anel','brinco','colar','pulseira','tornozeleira','pingente'];
