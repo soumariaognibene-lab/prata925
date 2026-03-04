@@ -2668,6 +2668,8 @@ function setGalleryMain(src, thumb) {
   document.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active'));
   thumb.classList.add('active');
 }
+
+function openProductModal(ref=null) {
   editingRef = ref;
   tempMainPhoto = null;
   tempGallery = [];
