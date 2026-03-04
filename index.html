@@ -1066,7 +1066,136 @@ textarea.field-input { resize: vertical; min-height: 80px; }
   gap: 8px;
 }
 
-/* FILTER CHIPS */
+/* ── PRODUTO CARDS (mobile) ─────────────────────── */
+.produto-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--cream-dark);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.produto-card:active { background: var(--cream); }
+.produto-card-img {
+  width: 56px; height: 56px;
+  border-radius: 10px;
+  background: var(--cream-dark);
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.produto-card-img img { width:100%;height:100%;object-fit:cover; }
+.produto-card-info { flex: 1; min-width: 0; }
+.produto-card-nome { font-weight:600;font-size:14px;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.produto-card-ref { font-size:12px;color:var(--silver);margin-top:2px; }
+.produto-card-actions { display:flex;gap:6px;flex-shrink:0; }
+
+/* Desktop: hide cards, show table */
+#produtos-cards { display: none; }
+
+/* ── MOBILE OVERRIDE ─────────────────────────────── */
+@media (max-width: 768px) {
+  /* Hide table, show cards */
+  .card .table-wrapper { display: none !important; }
+  #produtos-cards { display: block !important; }
+
+  /* Dashboard 2-col grid → 1 col */
+  #dash-grid-2 { grid-template-columns: 1fr !important; }
+
+  /* Page header stacks */
+  .page-header { flex-direction: column; align-items: stretch; gap: 10px; }
+  #produtos-actions { flex-direction: column; }
+  #produtos-actions .search-bar { max-width: 100%; }
+  #produtos-actions .btn { width: 100%; justify-content: center; }
+
+  /* Topbar */
+  .topbar { left: 0; padding: 0 14px; }
+  .topbar-menu-btn { display: flex; }
+  .topbar-title { font-size: 15px; }
+  .topbar-actions .btn span:last-child { display: none; }
+  .topbar-actions .btn { padding: 8px 10px; min-width: 38px; justify-content: center; }
+
+  .main-content { margin-left: 0; }
+  .page { padding: 12px; }
+
+  /* Stats */
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 20px; }
+  .stat-icon { font-size: 20px; margin-bottom: 6px; }
+
+  /* Forms */
+  .form-row-2, .form-row-3 { grid-template-columns: 1fr !important; }
+
+  /* Modals from bottom */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { border-radius: 20px 20px 0 0; max-height: 92vh; max-width: 100% !important; width: 100%; }
+  .modal-body { padding: 14px 16px; }
+  .modal-header { padding: 16px 16px 12px; }
+  .modal-footer { padding: 12px 16px 28px; gap: 8px; }
+  .modal-footer .btn { flex: 1; justify-content: center; }
+
+  /* Cards */
+  .card-body { padding: 14px; }
+  .card-header { padding: 12px 14px; }
+  .card-title { font-size: 14px; }
+
+  /* Auth */
+  .auth-card { border-radius: 0; min-height: 100vh; padding: 40px 20px; display:flex; flex-direction:column; justify-content:center; }
+
+  /* Filter chips */
+  .filter-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; }
+
+  /* Toast */
+  #toast-container { left: 10px; right: 10px; bottom: 16px; top: auto; }
+  .toast { min-width: unset; max-width: 100%; width: 100%; }
+
+  /* Scanner full width */
+  #page-scanner > div { max-width: 100% !important; }
+  #scanner-video-container video { border-radius: 12px; }
+
+  /* Margin display */
+  .margin-display { flex-direction: column; gap: 8px; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr !important; }
+  .page { padding: 10px; }
+  .produto-card { padding: 12px; }
+}
+
+/* Gallery viewer */
+.gallery-main-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--cream-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 64px;
+  overflow: hidden;
+}
+.gallery-thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.gallery-thumb {
+  width: 60px; height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+  background: var(--cream-dark);
+}
+.gallery-thumb.active { border-color: var(--gold); }
 .filter-chips {
   display: flex;
   gap: 8px;
@@ -1380,8 +1509,8 @@ textarea.field-input { resize: vertical; min-height: 80px; }
     <div class="page" id="page-scanner">
       <div class="page-header">
         <div class="page-heading">
-          <h2>Scanner QR</h2>
-          <p>Aponte a câmera para o QR code da peça</p>
+          <h2>Scanner</h2>
+          <p>QR Code e Código de Barras</p>
         </div>
       </div>
       <div style="max-width:400px;margin:0 auto">
@@ -1920,6 +2049,18 @@ textarea.field-input { resize: vertical; min-height: 80px; }
   </div>
 </div>
 
+<!-- MODAL: VISUALIZAR PRODUTO -->
+<div class="modal-overlay" id="modal-view-produto">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="view-produto-title">Detalhes do Produto</span>
+      <button class="modal-close" onclick="closeModal('modal-view-produto')">✕</button>
+    </div>
+    <div class="modal-body" id="view-produto-body"></div>
+    <div class="modal-footer" id="view-produto-footer"></div>
+  </div>
+</div>
+
 <!-- MODAL: DELETE CONFIRM -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal modal-sm">
@@ -2380,7 +2521,7 @@ function renderProdutos() {
   const qty = p => stocks[p.ref]||0;
 
   tbody.innerHTML = filtered.map(p => `
-    <tr class="${qty(p)<=2?'low-stock-row':''}">
+    <tr class="${qty(p)<=2?'low-stock-row':''}" onclick="viewProduto('${p.ref}')" style="cursor:pointer">
       <td>
         <div class="product-cell">
           <div class="product-thumb">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:`<span>${getCatEmoji(p.cat)}</span>`}</div>
@@ -2400,7 +2541,7 @@ function renderProdutos() {
         </span>
       </td>
       <td><span class="badge badge-${p.status}">${p.status}</span></td>
-      <td>
+      <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="qr-mini-btn" onclick="showQR('${p.ref}')" title="Ver QR">◼</button>
           ${isAdmin?`
@@ -2412,9 +2553,121 @@ function renderProdutos() {
       </td>
     </tr>
   `).join('');
+
+  // Mobile cards view
+  renderProdutoCards(filtered, stocks, isAdmin);
 }
 
-function openProductModal(ref=null) {
+function renderProdutoCards(filtered, stocks, isAdmin) {
+  let el = document.getElementById('produtos-cards');
+  if(!el) {
+    el = document.createElement('div');
+    el.id = 'produtos-cards';
+    document.querySelector('.card .table-wrapper').parentNode.appendChild(el);
+  }
+  el.innerHTML = filtered.map(p => {
+    const q = stocks[p.ref]||0;
+    const margin = ((p.venda-p.custo)/p.custo*100).toFixed(0);
+    return `<div class="produto-card" onclick="viewProduto('${p.ref}')">
+      <div class="produto-card-img">${p.foto?`<img src="${p.foto}">`:`<span style="font-size:32px">${getCatEmoji(p.cat)}</span>`}</div>
+      <div class="produto-card-info">
+        <div class="produto-card-nome">${p.nome}</div>
+        <div class="produto-card-ref">${p.ref} · <span class="badge badge-${p.cat}" style="font-size:10px">${p.cat}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <strong style="font-size:15px">${fmtBRL(p.venda)}</strong>
+          <span style="color:var(--success);font-size:12px">+${margin}%</span>
+          <span class="stock-pill ${q===0?'zero':q<=2?'low':'ok'}" style="margin-left:auto">${q===0?'⚠️':''} ${q} un</span>
+        </div>
+      </div>
+      ${isAdmin?`<div class="produto-card-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.ref}')">✏️</button>
+        <button class="btn btn-success btn-sm" onclick="openVendaModal('${p.ref}')">💰</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduto('${p.ref}')">🗑</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+
+}
+
+function viewProduto(ref) {
+  const p = cache.produtos.find(x=>x.ref===ref);
+  if(!p) return;
+  const stocks = getAllStocks();
+  const qty = stocks[ref]||0;
+  const isAdmin = currentUser.role==='admin';
+  const margin = p.custo>0?((p.venda-p.custo)/p.custo*100).toFixed(0)+'%':'—';
+  const allImgs = [p.foto, ...(p.galeria||[])].filter(Boolean);
+
+  document.getElementById('view-produto-title').textContent = p.nome;
+
+  document.getElementById('view-produto-body').innerHTML = `
+    <div>
+      ${allImgs.length ? `
+        <div class="gallery-main-img" id="gallery-main-wrap">
+          <img id="gallery-main" src="${allImgs[0]}" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        ${allImgs.length>1?`<div class="gallery-thumbs">
+          ${allImgs.map((img,i)=>`<img src="${img}" class="gallery-thumb${i===0?' active':''}" onclick="setGalleryMain('${img}',this)">`).join('')}
+        </div>`:''}
+      ` : `<div class="gallery-main-img" style="background:var(--cream-dark)">${getCatEmoji(p.cat)}</div>`}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Referência</div>
+          <div style="font-family:monospace;font-weight:600;font-size:15px">${p.ref}</div>
+        </div>
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Categoria</div>
+          <span class="badge badge-${p.cat}">${getCatEmoji(p.cat)} ${p.cat}</span>
+        </div>
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Preço de Venda</div>
+          <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtBRL(p.venda)}</div>
+        </div>
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Estoque</div>
+          <span class="stock-pill ${qty===0?'zero':qty<=2?'low':'ok'}" style="font-size:15px">${qty===0?'⚠️':''} ${qty} un</span>
+        </div>
+        ${isAdmin?`
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Custo</div>
+          <div style="font-weight:600">${fmtBRL(p.custo)}</div>
+        </div>
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Margem</div>
+          <div style="color:var(--success);font-weight:600">${margin}</div>
+        </div>`:''}
+        ${p.peso?`<div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Peso</div>
+          <div style="font-weight:600">${p.peso}g</div>
+        </div>`:''}
+        <div style="background:var(--cream);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Status</div>
+          <span class="badge badge-${p.status}">${p.status}</span>
+        </div>
+      </div>
+      ${p.descricao?`<div style="margin-top:16px;padding:14px;background:var(--cream);border-radius:10px">
+        <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Descrição</div>
+        <p style="font-size:14px;color:var(--charcoal-soft);line-height:1.6">${p.descricao}</p>
+      </div>`:''}
+    </div>`;
+
+  document.getElementById('view-produto-footer').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal('modal-view-produto')">Fechar</button>
+    <button class="btn btn-outline" onclick="closeModal('modal-view-produto');showQR('${p.ref}')">◼ QR Code</button>
+    ${isAdmin?`
+    <button class="btn btn-success" onclick="closeModal('modal-view-produto');openVendaModal('${p.ref}')">💰 Registrar Venda</button>
+    <button class="btn btn-gold" onclick="closeModal('modal-view-produto');openProductModal('${p.ref}')">✏️ Editar</button>
+    `:''}`;
+
+  openModal('modal-view-produto');
+}
+
+function setGalleryMain(src, thumb) {
+  document.getElementById('gallery-main').src = src;
+  document.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active'));
+  thumb.classList.add('active');
+}
   editingRef = ref;
   tempMainPhoto = null;
   tempGallery = [];
@@ -2621,41 +2874,100 @@ function printQR() {
 // ═══════════════════════════════════════════════════════
 async function startScanner() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    });
-    scannerStream = stream;
     const video = document.getElementById('scanner-video');
-    video.srcObject = stream;
     document.getElementById('scanner-start-screen').style.display='none';
     document.getElementById('scanner-video-container').style.display='block';
     document.getElementById('scanner-active-controls').style.display='block';
+    document.getElementById('scanner-status').textContent = 'Iniciando câmera...';
 
-    // Prefer native BarcodeDetector (Chrome Android, modern browsers)
-    if('BarcodeDetector' in window) {
-      const formats = ['qr_code','code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','data_matrix','pdf417','aztec'];
-      try {
-        window._barcodeDetector = new BarcodeDetector({ formats });
-      } catch(e) {
-        window._barcodeDetector = new BarcodeDetector();
-      }
-      scannerInterval = setInterval(() => tryReadBarcode(video), 300);
-      toast('Scanner ativo (QR + Código de barras)', 'info', 2500);
-    } else {
-      // Fallback: jsQR for QR codes
-      scannerInterval = setInterval(() => tryReadQR(video), 300);
-      toast('Scanner ativo (QR Code)', 'info', 2500);
+    // Try ZXing first (best barcode+QR support)
+    if(window.ZXing) {
+      await startZXing(video);
+      return;
     }
+
+    // Load ZXing dynamically
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+    script.onload = () => startZXing(video);
+    script.onerror = () => startFallback(video); // fallback to jsQR
+    document.head.appendChild(script);
+
   } catch(e) {
-    toast('Não foi possível acessar a câmera: '+e.message, 'error');
+    toast('Câmera indisponível: '+e.message, 'error');
+    stopScanner();
+  }
+}
+
+async function startZXing(video) {
+  try {
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.PDF_417,
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    window._zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length-1];
+    const deviceId = backCamera ? backCamera.deviceId : undefined;
+
+    window._zxingReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+      if(result) {
+        const raw = result.getText().trim().toUpperCase();
+        if(Date.now()-lastScanTime > 1500) {
+          lastScanTime = Date.now();
+          navigator.vibrate && navigator.vibrate(80);
+          document.getElementById('scanner-status').textContent = `✅ Lido: ${raw}`;
+          processScannedRef(raw);
+        }
+      }
+    });
+    document.getElementById('scanner-status').textContent = 'Câmera ativa — aponte para QR ou código de barras';
+    toast('Scanner ativo (QR + Código de barras)', 'info', 2000);
+  } catch(e) {
+    toast('Erro no scanner: '+e.message, 'error');
+    startFallback(video);
+  }
+}
+
+async function startFallback(video) {
+  // jsQR fallback
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} },
+      audio: false
+    });
+    scannerStream = stream;
+    video.srcObject = stream;
+    scannerInterval = setInterval(() => tryReadQR(video), 400);
+    document.getElementById('scanner-status').textContent = 'Câmera ativa — aponte para QR Code';
+  } catch(e) {
+    toast('Não foi possível acessar a câmera', 'error');
+    stopScanner();
   }
 }
 
 function stopScanner() {
+  // ZXing
+  if(window._zxingReader) {
+    try { window._zxingReader.reset(); } catch(e){}
+    window._zxingReader = null;
+  }
+  // jsQR fallback stream
   if(scannerStream) { scannerStream.getTracks().forEach(t=>t.stop()); scannerStream=null; }
   if(scannerInterval) { clearInterval(scannerInterval); scannerInterval=null; }
-  window._barcodeDetector = null;
+
   const ss = document.getElementById('scanner-start-screen');
   const vc = document.getElementById('scanner-video-container');
   const ac = document.getElementById('scanner-active-controls');
@@ -2665,19 +2977,6 @@ function stopScanner() {
 }
 
 let lastScanTime = 0;
-
-async function tryReadBarcode(video) {
-  if(Date.now()-lastScanTime < 1500) return;
-  if(!video.videoWidth || !window._barcodeDetector) return;
-  try {
-    const barcodes = await window._barcodeDetector.detect(video);
-    if(barcodes && barcodes.length > 0) {
-      lastScanTime = Date.now();
-      const raw = barcodes[0].rawValue.trim();
-      processScannedRef(raw.toUpperCase());
-    }
-  } catch(e) {}
-}
 
 function tryReadQR(video) {
   if(Date.now()-lastScanTime < 1500) return;
@@ -2692,6 +2991,7 @@ function tryReadQR(video) {
     const code = window.jsQR(imageData.data, imageData.width, imageData.height, {inversionAttempts:'dontInvert'});
     if(code) {
       lastScanTime = Date.now();
+      navigator.vibrate && navigator.vibrate(80);
       processScannedRef(code.data.trim().toUpperCase());
     }
   }
