@@ -2164,49 +2164,11 @@ function confirmDelete(cb) {
 }
 
 // ═══════════════════════════════════════════════════════
-// SEED DEMO DATA
+// SEED DEMO DATA (desabilitado em produção)
 // ═══════════════════════════════════════════════════════
 async function seedDemoData() {
-  if(cache.produtos.length > 0) return;
-  const produtos = [
-    {ref:'AN001',nome:'Anel Solitário Zircônia',cat:'anel',descricao:'Anel clássico com pedra de zircônia 5mm',peso:3.2,custo:45,mult:2.6,sugerido:119,venda:119,status:'ativo',foto:null,galeria:[]},
-    {ref:'AN002',nome:'Anel Trio Cravejado',cat:'anel',descricao:'Anel com três pedras cravejadas',peso:2.8,custo:55,mult:2.6,sugerido:139,venda:149,status:'ativo',foto:null,galeria:[]},
-    {ref:'BR001',nome:'Brinco Argola 30mm',cat:'brinco',descricao:'Argola lisa polida 30mm',peso:4.1,custo:32,mult:2.6,sugerido:79,venda:89,status:'ativo',foto:null,galeria:[]},
-    {ref:'BR002',nome:'Brinco Gota Cristal',cat:'brinco',descricao:'Brinco gota com cristal facetado',peso:2.5,custo:38,mult:2.6,sugerido:99,venda:99,status:'ativo',foto:null,galeria:[]},
-    {ref:'CO001',nome:'Colar Veneziana 45cm',cat:'colar',descricao:'Corrente veneziana fina 45cm',peso:5.0,custo:68,mult:2.6,sugerido:179,venda:179,status:'ativo',foto:null,galeria:[]},
-    {ref:'PU001',nome:'Pulseira Elo Portuguesa',cat:'pulseira',descricao:'Pulseira elo portuguesa 18cm',peso:6.2,custo:75,mult:2.6,sugerido:199,venda:199,status:'ativo',foto:null,galeria:[]},
-    {ref:'PI001',nome:'Pingente Coração Vazado',cat:'pingente',descricao:'Pingente coração vazado liso',peso:1.8,custo:22,mult:2.6,sugerido:59,venda:59,status:'ativo',foto:null,galeria:[]},
-    {ref:'TO001',nome:'Tornozeleira Bolinha',cat:'tornozeleira',descricao:'Tornozeleira com bolinhas 25cm',peso:3.5,custo:40,mult:2.6,sugerido:99,venda:109,status:'inativo',foto:null,galeria:[]},
-  ];
-
-  const movs = [
-    {id:genId(),data:'2026-01-10',ref:'AN001',tipo:'entrada',qtd:10,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'AN002',tipo:'entrada',qtd:8,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'BR001',tipo:'entrada',qtd:12,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'BR002',tipo:'entrada',qtd:10,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'CO001',tipo:'entrada',qtd:6,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'PU001',tipo:'entrada',qtd:5,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'PI001',tipo:'entrada',qtd:15,obs:'Lote inicial'},
-    {id:genId(),data:'2026-01-10',ref:'TO001',tipo:'entrada',qtd:4,obs:'Lote inicial'},
-  ];
-  const vendas = [
-    {id:genId(),data:'2026-02-05',ref:'AN001',cliente:'Maria S.',canal:'Instagram',valor:119,custo:45,lucro:74,obs:''},
-    {id:genId(),data:'2026-02-08',ref:'BR001',cliente:'',canal:'Presencial',valor:89,custo:32,lucro:57,obs:''},
-    {id:genId(),data:'2026-02-12',ref:'CO001',cliente:'Ana P.',canal:'WhatsApp',valor:179,custo:68,lucro:111,obs:''},
-    {id:genId(),data:'2026-02-15',ref:'AN001',cliente:'',canal:'Instagram',valor:119,custo:45,lucro:74,obs:''},
-    {id:genId(),data:'2026-02-20',ref:'BR002',cliente:'Julia M.',canal:'WhatsApp',valor:99,custo:38,lucro:61,obs:''},
-    {id:genId(),data:'2026-03-01',ref:'PU001',cliente:'Carla F.',canal:'Instagram',valor:199,custo:75,lucro:124,obs:''},
-    {id:genId(),data:'2026-03-02',ref:'PI001',cliente:'',canal:'Presencial',valor:59,custo:22,lucro:37,obs:''},
-    {id:genId(),data:'2026-03-03',ref:'AN002',cliente:'Bianca R.',canal:'WhatsApp',valor:149,custo:55,lucro:94,obs:''},
-  ];
-  vendas.forEach(v => movs.push({id:genId(),data:v.data,ref:v.ref,tipo:'venda',qtd:1,obs:`Venda #${v.id.slice(-4)}`}));
-
-  try {
-    await supa.upsert('produtos', produtos);
-    await supa.upsert('movimentacoes', movs);
-    await supa.upsert('vendas', vendas);
-    await loadAll();
-  } catch(e) { console.error('Seed error:', e); }
+  // Dados demo removidos — sistema pronto para uso real
+  return;
 }
 
 // ═══════════════════════════════════════════════════════
