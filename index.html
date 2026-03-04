@@ -735,54 +735,6 @@ textarea.field-input { resize: vertical; min-height: 80px; }
 }
 
 /* SCANNER */
-#scanner-video-container {
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--charcoal);
-  aspect-ratio: 1;
-  max-width: 340px;
-  margin: 0 auto;
-}
-#scanner-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.scanner-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.scanner-frame {
-  width: 65%; height: 65%;
-  border: 3px solid var(--gold);
-  border-radius: 16px;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);
-  position: relative;
-  animation: scanPulse 2s ease-in-out infinite;
-}
-.scanner-frame::before {
-  content: '';
-  position: absolute;
-  top: -3px; left: 20%; right: 20%;
-  height: 3px;
-  background: var(--gold-light);
-  animation: scanLine 2s ease-in-out infinite;
-}
-@keyframes scanLine {
-  0% { top: 0; }
-  50% { top: calc(100% - 3px); }
-  100% { top: 0; }
-}
-@keyframes scanPulse {
-  0%, 100% { border-color: var(--gold); }
-  50% { border-color: var(--gold-light); }
-}
-
 /* QR Code display */
 .qr-display {
   display: flex;
@@ -978,224 +930,143 @@ textarea.field-input { resize: vertical; min-height: 80px; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* RESPONSIVE — MOBILE FIRST */
-@media (max-width: 768px) {
-  :root { --sidebar-w: 260px; }
+/* Pull-to-refresh indicator */
+#ptr-indicator {
+  position: fixed; top: 0; left: 0; right: 0; height: 0;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; transition: height 0.1s; color: white;
+  font-size: 13px; font-weight: 600; gap: 8px;
+}
 
+/* ── PAGE HEADER ACTIONS ──────────────────────────── */
+.page-actions {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+
+/* ── DESKTOP / MOBILE TOGGLE ──────────────────────── */
+.mobile-only { display: none; }
+.desktop-only { display: block; }
+
+/* ── PRODUTO CARDS ────────────────────────────────── */
+.produto-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--cream-dark);
+  cursor: pointer; transition: background 0.15s;
+}
+.produto-card:last-child { border-bottom: none; }
+.produto-card:active { background: var(--cream); }
+.produto-card-img {
+  width: 54px; height: 54px; border-radius: 10px;
+  background: var(--cream-dark); flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.produto-card-img img { width:100%; height:100%; object-fit:cover; }
+.produto-card-info { flex: 1; min-width: 0; }
+.produto-card-nome { font-weight:600; font-size:14px; color:var(--charcoal); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.produto-card-ref { font-size:12px; color:var(--silver); margin-top:2px; }
+.produto-card-actions { display:flex; gap:5px; flex-shrink:0; }
+
+/* ── GALLERY ──────────────────────────────────────── */
+.gallery-main-img {
+  width: 100%; aspect-ratio: 4/3; object-fit: cover;
+  border-radius: 12px; background: var(--cream-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 64px; overflow: hidden;
+}
+.gallery-thumbs {
+  display: flex; gap: 8px; margin-top: 10px;
+  overflow-x: auto; padding-bottom: 4px;
+}
+.gallery-thumb {
+  width: 60px; height: 60px; border-radius: 8px; object-fit: cover;
+  flex-shrink: 0; cursor: pointer; border: 2px solid transparent;
+  transition: border-color 0.15s; background: var(--cream-dark);
+}
+.gallery-thumb.active { border-color: var(--gold); }
+
+/* ── RESPONSIVE 768px ─────────────────────────────── */
+@media (max-width: 768px) {
+  /* Sidebar drawer */
   .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay.open { display: block; }
 
-  .topbar { left: 0; padding: 0 16px; }
-  .topbar-menu-btn { display: flex; }
-  .topbar-title { font-size: 16px; }
-  .topbar-actions .btn span { display: none; }
-  .topbar-actions .btn { padding: 8px 10px; }
-
-  .main-content { margin-left: 0; }
-  .page { padding: 14px; }
-
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat-card { padding: 14px 16px; }
-  .stat-value { font-size: 22px; }
-  .stat-icon { font-size: 22px; margin-bottom: 6px; }
-
-  .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
-
-  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .page-header .topbar-actions { width: 100%; }
-  .page-header .topbar-actions .btn { flex: 1; justify-content: center; }
-  .search-bar { max-width: 100%; }
-
-  .detail-actions { grid-template-columns: 1fr; }
-
-  /* Tables → card list on mobile */
-  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 600px; }
-
-  /* Modals full-screen on mobile */
-  .modal-overlay { padding: 0; align-items: flex-end; }
-  .modal { border-radius: 20px 20px 0 0; max-height: 95vh; max-width: 100%; }
-  .modal-lg { max-width: 100%; }
-  .modal-sm { max-width: 100%; }
-  .modal-body { padding: 14px 18px; }
-  .modal-header { padding: 18px 18px 12px; }
-  .modal-footer { padding: 12px 18px 24px; }
-
-  /* Cards */
-  .card-body { padding: 16px; }
-  .card-header { padding: 14px 16px 12px; }
-  .card-title { font-size: 15px; }
-
-  /* Auth card */
-  .auth-card { border-radius: 0; min-height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; justify-content: center; }
-
-  /* Chips scroll horizontal */
-  .filter-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-  .filter-chips::-webkit-scrollbar { display: none; }
-  .chip { flex-shrink: 0; }
-
-  /* Toast */
-  #toast-container { left: 12px; right: 12px; bottom: 20px; top: auto; }
-  .toast { min-width: unset; max-width: 100%; width: 100%; }
-
-  /* Scanner */
-  #scanner-video-container video { max-height: 50vh; }
-}
-
-@media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
-  .page { padding: 12px; }
-}
-
-/* Pull-to-refresh indicator */
-#ptr-indicator {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 0;
-  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  transition: height 0.1s;
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  gap: 8px;
-}
-
-/* ── PRODUTO CARDS (mobile) ─────────────────────── */
-.produto-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--cream-dark);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.produto-card:active { background: var(--cream); }
-.produto-card-img {
-  width: 56px; height: 56px;
-  border-radius: 10px;
-  background: var(--cream-dark);
-  flex-shrink: 0;
-  overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-}
-.produto-card-img img { width:100%;height:100%;object-fit:cover; }
-.produto-card-info { flex: 1; min-width: 0; }
-.produto-card-nome { font-weight:600;font-size:14px;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.produto-card-ref { font-size:12px;color:var(--silver);margin-top:2px; }
-.produto-card-actions { display:flex;gap:6px;flex-shrink:0; }
-
-/* Desktop: hide cards, show table */
-#produtos-cards { display: none; }
-
-/* ── MOBILE OVERRIDE ─────────────────────────────── */
-@media (max-width: 768px) {
-  /* Hide table, show cards */
-  .card .table-wrapper { display: none !important; }
-  #produtos-cards { display: block !important; }
-
-  /* Dashboard 2-col grid → 1 col */
-  #dash-grid-2 { grid-template-columns: 1fr !important; }
-
-  /* Page header stacks */
-  .page-header { flex-direction: column; align-items: stretch; gap: 10px; }
-  #produtos-actions { flex-direction: column; }
-  #produtos-actions .search-bar { max-width: 100%; }
-  #produtos-actions .btn { width: 100%; justify-content: center; }
-
   /* Topbar */
-  .topbar { left: 0; padding: 0 14px; }
+  .topbar { left: 0; padding: 0 12px; gap: 8px; }
   .topbar-menu-btn { display: flex; }
-  .topbar-title { font-size: 15px; }
+  .topbar-title { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .topbar-actions { gap: 6px; }
+  .topbar-actions .btn { padding: 8px; min-width: 36px; justify-content: center; }
   .topbar-actions .btn span:last-child { display: none; }
-  .topbar-actions .btn { padding: 8px 10px; min-width: 38px; justify-content: center; }
 
+  /* Layout */
   .main-content { margin-left: 0; }
   .page { padding: 12px; }
+
+  /* Page header */
+  .page-header { flex-direction: column; align-items: stretch; gap: 8px; }
+  .page-heading h2 { font-size: 20px; }
+  .page-actions { flex-direction: column; }
+  .page-actions .search-bar, .page-actions .btn { width: 100%; }
+  .page-actions .btn { justify-content: center; }
 
   /* Stats */
-  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
-  .stat-card { padding: 14px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stat-card { padding: 12px 14px; }
   .stat-value { font-size: 20px; }
-  .stat-icon { font-size: 20px; margin-bottom: 6px; }
+  .stat-icon { font-size: 20px; margin-bottom: 4px; }
+  .stat-sub { font-size: 11px; }
+
+  /* Dashboard grid */
+  #dash-grid-2 { grid-template-columns: 1fr !important; }
 
   /* Forms */
-  .form-row-2, .form-row-3 { grid-template-columns: 1fr !important; }
+  .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
 
-  /* Modals from bottom */
+  /* Show cards, hide table */
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+
+  /* Filter chips scroll */
+  .filter-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; font-size: 12px; padding: 5px 12px; }
+
+  /* Modals slide up from bottom */
   .modal-overlay { padding: 0; align-items: flex-end; }
-  .modal { border-radius: 20px 20px 0 0; max-height: 92vh; max-width: 100% !important; width: 100%; }
-  .modal-body { padding: 14px 16px; }
+  .modal, .modal-lg, .modal-sm { border-radius: 20px 20px 0 0; max-height: 92vh; max-width: 100%; width: 100%; }
   .modal-header { padding: 16px 16px 12px; }
+  .modal-body { padding: 12px 16px; }
   .modal-footer { padding: 12px 16px 28px; gap: 8px; }
   .modal-footer .btn { flex: 1; justify-content: center; }
 
   /* Cards */
-  .card-body { padding: 14px; }
   .card-header { padding: 12px 14px; }
+  .card-body { padding: 14px; }
   .card-title { font-size: 14px; }
 
   /* Auth */
-  .auth-card { border-radius: 0; min-height: 100vh; padding: 40px 20px; display:flex; flex-direction:column; justify-content:center; }
-
-  /* Filter chips */
-  .filter-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .filter-chips::-webkit-scrollbar { display: none; }
-  .chip { flex-shrink: 0; }
+  .auth-card { border-radius: 0; min-height: 100vh; padding: 32px 20px; display:flex; flex-direction:column; justify-content:center; max-width: 100%; }
 
   /* Toast */
   #toast-container { left: 10px; right: 10px; bottom: 16px; top: auto; }
   .toast { min-width: unset; max-width: 100%; width: 100%; }
 
-  /* Scanner full width */
-  #page-scanner > div { max-width: 100% !important; }
-  #scanner-video-container video { border-radius: 12px; }
-
   /* Margin display */
-  .margin-display { flex-direction: column; gap: 8px; text-align: center; }
+  .margin-display { flex-wrap: wrap; gap: 8px; }
+
+  /* Detail actions */
+  .detail-actions { grid-template-columns: 1fr; }
+
+  /* Estoque table scroll */
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr; }
   .page { padding: 10px; }
-  .produto-card { padding: 12px; }
 }
-
-/* Gallery viewer */
-.gallery-main-img {
-  width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
-  border-radius: 12px;
-  background: var(--cream-dark);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 64px;
-  overflow: hidden;
-}
-.gallery-thumbs {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.gallery-thumb {
-  width: 60px; height: 60px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: border-color 0.15s;
-  background: var(--cream-dark);
-}
-.gallery-thumb.active { border-color: var(--gold); }
 .filter-chips {
   display: flex;
   gap: 8px;
@@ -1433,9 +1304,6 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <h2>Visão Geral</h2>
           <p id="dashboard-date">Carregando...</p>
         </div>
-        <button class="btn btn-gold" onclick="showPage('scanner')" id="btn-scanner-dash" style="display:none">
-          <span>📷</span> <span>Scanner QR</span>
-        </button>
       </div>
       <div class="stats-grid" id="stats-grid"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;" id="dash-grid-2">
@@ -1468,10 +1336,10 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <h2>Produtos</h2>
           <p id="produtos-count">Carregando...</p>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap" id="produtos-actions">
+        <div class="page-actions" id="produtos-actions">
           <div class="search-bar">
             <span class="icon">🔍</span>
-            <input type="text" placeholder="Buscar referência ou nome..." id="search-produtos" oninput="renderProdutos()">
+            <input type="text" placeholder="Buscar..." id="search-produtos" oninput="renderProdutos()">
           </div>
           <button class="btn btn-gold" onclick="openProductModal()" id="btn-new-produto">
             <span>＋</span> <span>Novo Produto</span>
@@ -1479,77 +1347,35 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         </div>
       </div>
       <div class="filter-chips" id="filter-categorias"></div>
-      <div class="card">
+
+      <!-- DESKTOP: tabela -->
+      <div class="card desktop-only">
         <div class="table-wrapper">
           <table>
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Categoria</th>
-                <th>Custo</th>
-                <th>Preço Venda</th>
-                <th>Margem</th>
-                <th>Estoque</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
+            <thead><tr>
+              <th>Produto</th><th>Cat.</th><th>Custo</th>
+              <th>Venda</th><th>Margem</th><th>Estoque</th>
+              <th>Status</th><th>Ações</th>
+            </tr></thead>
             <tbody id="tbody-produtos"></tbody>
           </table>
         </div>
         <div id="empty-produtos" class="empty-state" style="display:none">
-          <div class="emoji">💎</div>
-          <p>Nenhum produto cadastrado</p>
+          <div class="emoji">💎</div><p>Nenhum produto cadastrado</p>
+          <small>Clique em "Novo Produto" para começar</small>
+        </div>
+      </div>
+
+      <!-- MOBILE: cards -->
+      <div class="card mobile-only" id="produtos-cards-wrap">
+        <div id="produtos-cards"></div>
+        <div id="empty-produtos-mob" class="empty-state" style="display:none">
+          <div class="emoji">💎</div><p>Nenhum produto cadastrado</p>
           <small>Clique em "Novo Produto" para começar</small>
         </div>
       </div>
     </div>
 
-    <!-- SCANNER -->
-    <div class="page" id="page-scanner">
-      <div class="page-header">
-        <div class="page-heading">
-          <h2>Scanner</h2>
-          <p>QR Code e Código de Barras</p>
-        </div>
-      </div>
-      <div style="max-width:400px;margin:0 auto">
-        <div id="scanner-video-container" style="display:none">
-          <video id="scanner-video" autoplay playsinline muted></video>
-          <div class="scanner-overlay">
-            <div class="scanner-frame"></div>
-          </div>
-        </div>
-        <div id="scanner-start-screen" class="card" style="text-align:center;padding:40px 20px">
-          <div style="font-size:60px;margin-bottom:20px">📷</div>
-          <h3 style="font-family:'Inter',sans-serif;font-size:22px;margin-bottom:8px">Leitor de QR Code</h3>
-          <p style="color:var(--silver);margin-bottom:24px;font-size:14px">Permita o acesso à câmera para escanear o código das peças</p>
-          <button class="btn btn-gold" onclick="startScanner()" style="width:100%;justify-content:center">
-            <span>📷</span> Ativar Câmera
-          </button>
-          <div style="margin-top:24px;border-top:1px solid var(--cream-dark);padding-top:20px">
-            <p style="color:var(--silver);font-size:13px;margin-bottom:12px">Ou buscar manualmente:</p>
-            <div style="display:flex;gap:10px">
-              <input class="field-input" id="manual-ref-input" placeholder="Ex: AN234" style="flex:1">
-              <button class="btn btn-dark" onclick="scanManual()">Buscar</button>
-            </div>
-          </div>
-        </div>
-        <div id="scanner-active-controls" style="display:none;margin-top:16px;text-align:center">
-          <button class="btn btn-outline" onclick="stopScanner()" style="width:100%;justify-content:center">
-            ⏹ Parar Scanner
-          </button>
-          <p style="color:var(--silver);font-size:13px;margin-top:12px" id="scanner-status">Aguardando QR code...</p>
-          <div style="margin-top:16px;border-top:1px solid var(--cream-dark);padding-top:16px">
-            <p style="color:var(--silver);font-size:12px;margin-bottom:8px">Ou digitar manualmente:</p>
-            <div style="display:flex;gap:10px">
-              <input class="field-input" id="manual-ref-input2" placeholder="Referência..." style="flex:1">
-              <button class="btn btn-dark btn-sm" onclick="scanManual2()">→</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ESTOQUE -->
     <div class="page" id="page-estoque">
@@ -1911,17 +1737,6 @@ textarea.field-input { resize: vertical; min-height: 80px; }
   </div>
 </div>
 
-<!-- MODAL: SCANNER RESULT -->
-<div class="modal-overlay" id="modal-scanner-result">
-  <div class="modal modal-sm">
-    <div class="modal-header">
-      <span class="modal-title" id="sr-title">Produto Encontrado</span>
-      <button class="modal-close" onclick="closeModal('modal-scanner-result')">✕</button>
-    </div>
-    <div class="modal-body" id="sr-body"></div>
-  </div>
-</div>
-
 <!-- MODAL: VENDA -->
 <div class="modal-overlay" id="modal-venda">
   <div class="modal">
@@ -2161,8 +1976,7 @@ function showLoading(show) {
 
 let currentUser = null;
 let currentPage = 'dashboard';
-let scannerStream = null;
-let scannerInterval = null;
+// state
 let tempMainPhoto = null;
 let tempGallery = [];
 let editingRef = null;
@@ -2254,7 +2068,6 @@ function renderNav() {
   const adminNav = [
     { section: 'Principal' },
     { id:'dashboard', icon:'📊', label:'Dashboard' },
-    { id:'scanner', icon:'📷', label:'Scanner QR', hidden: true },
     { section: 'Gestão' },
     { id:'produtos', icon:'💍', label:'Produtos' },
     { id:'estoque', icon:'📦', label:'Estoque' },
@@ -2418,7 +2231,7 @@ function renderDashboard() {
   if(!isAdmin) { showPage('distribuidor'); return; }
 
   document.getElementById('dashboard-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  document.getElementById('btn-scanner-dash').style.display='flex';
+  document.getElementById('btn-new-produto') && (document.getElementById('btn-new-produto').style.display = isAdmin ? '' : 'none');
 
   const prods = cache.produtos;
   const movs = cache.movimentacoes;
@@ -2521,79 +2334,73 @@ function renderProdutos() {
 
   const tbody = document.getElementById('tbody-produtos');
   const empty = document.getElementById('empty-produtos');
-  if(!filtered.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
+  const emptyMob = document.getElementById('empty-produtos-mob');
+  const cardsEl = document.getElementById('produtos-cards');
+
+  if(!filtered.length) {
+    tbody.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    if(cardsEl) cardsEl.innerHTML = '';
+    if(emptyMob) emptyMob.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  if(emptyMob) emptyMob.style.display = 'none';
 
   const margin = p => ((p.venda - p.custo)/p.custo*100).toFixed(0)+'%';
   const qty = p => stocks[p.ref]||0;
 
+  // Desktop table
   tbody.innerHTML = filtered.map(p => `
     <tr class="${qty(p)<=2?'low-stock-row':''}" onclick="viewProduto('${p.ref}')" style="cursor:pointer">
       <td>
         <div class="product-cell">
           <div class="product-thumb">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:`<span>${getCatEmoji(p.cat)}</span>`}</div>
-          <div>
-            <div class="product-name">${p.nome}</div>
-            <div class="product-ref">${p.ref}</div>
-          </div>
+          <div><div class="product-name">${p.nome}</div><div class="product-ref">${p.ref}</div></div>
         </div>
       </td>
       <td><span class="badge badge-${p.cat}">${p.cat}</span></td>
       <td>${fmtBRL(p.custo)}</td>
       <td style="font-weight:600">${fmtBRL(p.venda)}</td>
       <td><span style="color:var(--success);font-weight:600">${margin(p)}</span></td>
-      <td>
-        <span class="stock-pill ${qty(p)===0?'zero':qty(p)<=2?'low':'ok'}">
-          ${qty(p)===0?'⚠️':''} ${qty(p)} un
-        </span>
-      </td>
+      <td><span class="stock-pill ${qty(p)===0?'zero':qty(p)<=2?'low':'ok'}">${qty(p)===0?'⚠️ ':''} ${qty(p)} un</span></td>
       <td><span class="badge badge-${p.status}">${p.status}</span></td>
       <td onclick="event.stopPropagation()">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="qr-mini-btn" onclick="showQR('${p.ref}')" title="Ver QR">◼</button>
+        <div style="display:flex;gap:5px">
+          <button class="qr-mini-btn" onclick="showQR('${p.ref}')" title="QR">◼</button>
           ${isAdmin?`
           <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.ref}')">✏️</button>
           <button class="btn btn-outline btn-sm" onclick="openVendaModal('${p.ref}')">💰</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteProduto('${p.ref}')">🗑</button>
-          `:''}
+          <button class="btn btn-danger btn-sm" onclick="deleteProduto('${p.ref}')">🗑</button>`:''}
         </div>
       </td>
     </tr>
   `).join('');
 
-  // Mobile cards view
-  renderProdutoCards(filtered, stocks, isAdmin);
-}
-
-function renderProdutoCards(filtered, stocks, isAdmin) {
-  let el = document.getElementById('produtos-cards');
-  if(!el) {
-    el = document.createElement('div');
-    el.id = 'produtos-cards';
-    document.querySelector('.card .table-wrapper').parentNode.appendChild(el);
-  }
-  el.innerHTML = filtered.map(p => {
-    const q = stocks[p.ref]||0;
-    const margin = ((p.venda-p.custo)/p.custo*100).toFixed(0);
-    return `<div class="produto-card" onclick="viewProduto('${p.ref}')">
-      <div class="produto-card-img">${p.foto?`<img src="${p.foto}">`:`<span style="font-size:32px">${getCatEmoji(p.cat)}</span>`}</div>
-      <div class="produto-card-info">
-        <div class="produto-card-nome">${p.nome}</div>
-        <div class="produto-card-ref">${p.ref} · <span class="badge badge-${p.cat}" style="font-size:10px">${p.cat}</span></div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <strong style="font-size:15px">${fmtBRL(p.venda)}</strong>
-          <span style="color:var(--success);font-size:12px">+${margin}%</span>
-          <span class="stock-pill ${q===0?'zero':q<=2?'low':'ok'}" style="margin-left:auto">${q===0?'⚠️':''} ${q} un</span>
+  // Mobile cards — always update
+  if(cardsEl) {
+    cardsEl.innerHTML = filtered.map(p => {
+      const q = qty(p);
+      const mg = ((p.venda-p.custo)/p.custo*100).toFixed(0);
+      return `<div class="produto-card" onclick="viewProduto('${p.ref}')">
+        <div class="produto-card-img">${p.foto?`<img src="${p.foto}">`:`<span style="font-size:28px">${getCatEmoji(p.cat)}</span>`}</div>
+        <div class="produto-card-info">
+          <div class="produto-card-nome">${p.nome}</div>
+          <div class="produto-card-ref">${p.ref} · <span class="badge badge-${p.cat}" style="font-size:10px;padding:2px 6px">${p.cat}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap">
+            <strong style="font-size:14px">${fmtBRL(p.venda)}</strong>
+            <span style="color:var(--success);font-size:11px">+${mg}%</span>
+            <span class="stock-pill ${q===0?'zero':q<=2?'low':'ok'}" style="margin-left:auto;font-size:11px">${q===0?'⚠️ ':''} ${q}un</span>
+          </div>
         </div>
-      </div>
-      ${isAdmin?`<div class="produto-card-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.ref}')">✏️</button>
-        <button class="btn btn-success btn-sm" onclick="openVendaModal('${p.ref}')">💰</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteProduto('${p.ref}')">🗑</button>
-      </div>`:''}
-    </div>`;
-  }).join('');
-
+        ${isAdmin?`<div class="produto-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-outline btn-sm" style="padding:6px 8px" onclick="openProductModal('${p.ref}')">✏️</button>
+          <button class="btn btn-success btn-sm" style="padding:6px 8px" onclick="openVendaModal('${p.ref}')">💰</button>
+          <button class="btn btn-danger btn-sm" style="padding:6px 8px" onclick="deleteProduto('${p.ref}')">🗑</button>
+        </div>`:''}
+      </div>`;
+    }).join('');
+  }
 }
 
 function viewProduto(ref) {
@@ -2876,191 +2683,6 @@ function printQR() {
     <script>window.onload=()=>window.print()<\/script>
   </body></html>`);
   win.document.close();
-}
-
-// ═══════════════════════════════════════════════════════
-// SCANNER
-// ═══════════════════════════════════════════════════════
-async function startScanner() {
-  try {
-    const video = document.getElementById('scanner-video');
-    document.getElementById('scanner-start-screen').style.display='none';
-    document.getElementById('scanner-video-container').style.display='block';
-    document.getElementById('scanner-active-controls').style.display='block';
-    document.getElementById('scanner-status').textContent = 'Iniciando câmera...';
-
-    // Try ZXing first (best barcode+QR support)
-    if(window.ZXing) {
-      await startZXing(video);
-      return;
-    }
-
-    // Load ZXing dynamically
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
-    script.onload = () => startZXing(video);
-    script.onerror = () => startFallback(video); // fallback to jsQR
-    document.head.appendChild(script);
-
-  } catch(e) {
-    toast('Câmera indisponível: '+e.message, 'error');
-    stopScanner();
-  }
-}
-
-async function startZXing(video) {
-  try {
-    const hints = new Map();
-    const formats = [
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.DATA_MATRIX,
-      ZXing.BarcodeFormat.PDF_417,
-    ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
-    window._zxingReader = new ZXing.BrowserMultiFormatReader(hints);
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length-1];
-    const deviceId = backCamera ? backCamera.deviceId : undefined;
-
-    window._zxingReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-      if(result) {
-        const raw = result.getText().trim().toUpperCase();
-        if(Date.now()-lastScanTime > 1500) {
-          lastScanTime = Date.now();
-          navigator.vibrate && navigator.vibrate(80);
-          document.getElementById('scanner-status').textContent = `✅ Lido: ${raw}`;
-          processScannedRef(raw);
-        }
-      }
-    });
-    document.getElementById('scanner-status').textContent = 'Câmera ativa — aponte para QR ou código de barras';
-    toast('Scanner ativo (QR + Código de barras)', 'info', 2000);
-  } catch(e) {
-    toast('Erro no scanner: '+e.message, 'error');
-    startFallback(video);
-  }
-}
-
-async function startFallback(video) {
-  // jsQR fallback
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} },
-      audio: false
-    });
-    scannerStream = stream;
-    video.srcObject = stream;
-    scannerInterval = setInterval(() => tryReadQR(video), 400);
-    document.getElementById('scanner-status').textContent = 'Câmera ativa — aponte para QR Code';
-  } catch(e) {
-    toast('Não foi possível acessar a câmera', 'error');
-    stopScanner();
-  }
-}
-
-function stopScanner() {
-  // ZXing
-  if(window._zxingReader) {
-    try { window._zxingReader.reset(); } catch(e){}
-    window._zxingReader = null;
-  }
-  // jsQR fallback stream
-  if(scannerStream) { scannerStream.getTracks().forEach(t=>t.stop()); scannerStream=null; }
-  if(scannerInterval) { clearInterval(scannerInterval); scannerInterval=null; }
-
-  const ss = document.getElementById('scanner-start-screen');
-  const vc = document.getElementById('scanner-video-container');
-  const ac = document.getElementById('scanner-active-controls');
-  if(ss) ss.style.display='block';
-  if(vc) vc.style.display='none';
-  if(ac) ac.style.display='none';
-}
-
-let lastScanTime = 0;
-
-function tryReadQR(video) {
-  if(Date.now()-lastScanTime < 1500) return;
-  if(!video.videoWidth) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0);
-  if(window.jsQR) {
-    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = window.jsQR(imageData.data, imageData.width, imageData.height, {inversionAttempts:'dontInvert'});
-    if(code) {
-      lastScanTime = Date.now();
-      navigator.vibrate && navigator.vibrate(80);
-      processScannedRef(code.data.trim().toUpperCase());
-    }
-  }
-}
-
-function scanManual() {
-  const ref = document.getElementById('manual-ref-input').value.trim().toUpperCase();
-  if(!ref) return;
-  processScannedRef(ref);
-}
-
-function scanManual2() {
-  const ref = document.getElementById('manual-ref-input2').value.trim().toUpperCase();
-  if(!ref) return;
-  processScannedRef(ref);
-}
-
-function processScannedRef(ref) {
-  const prods = cache.produtos;
-  const p = prods.find(x=>x.ref===ref);
-  const stocks = getAllStocks();
-  const status = document.getElementById('scanner-status');
-  if(status) status.textContent = `Escaneado: ${ref}`;
-  showScannerResult(ref, p, stocks[ref]||0);
-}
-
-function showScannerResult(ref, produto, qty) {
-  const isAdmin = currentUser.role==='admin';
-  const body = document.getElementById('sr-body');
-  if(!produto) {
-    document.getElementById('sr-title').textContent = `Peça não encontrada`;
-    body.innerHTML = `
-      <div style="text-align:center;padding:20px">
-        <div style="font-size:48px;margin-bottom:12px">🔍</div>
-        <p style="font-weight:600;font-size:16px;margin-bottom:4px">Referência: <span style="font-family:monospace;color:var(--gold-dark)">${ref}</span></p>
-        <p style="color:var(--silver);margin-bottom:20px;font-size:14px">Esta referência não está cadastrada no sistema</p>
-        ${isAdmin?`<button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeModal('modal-scanner-result');openProductModal();document.getElementById('p-ref').value='${ref}'">
-          ＋ Cadastrar Produto com esta Referência
-        </button>`:''}
-      </div>`;
-  } else {
-    document.getElementById('sr-title').textContent = produto.nome;
-    const stockClass = qty===0?'zero':qty<=2?'low':'ok';
-    body.innerHTML = `
-      <div>
-        ${produto.foto?`<img src="${produto.foto}" style="width:100%;height:160px;object-fit:cover;border-radius:12px;margin-bottom:16px">`:`<div style="width:100%;height:100px;background:var(--cream);border-radius:12px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;font-size:50px">${getCatEmoji(produto.cat)}</div>`}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-          <div><span style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px">Referência</span><br><strong style="font-family:monospace">${produto.ref}</strong></div>
-          <div><span style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px">Categoria</span><br><span class="badge badge-${produto.cat}">${produto.cat}</span></div>
-          <div><span style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px">Preço de Venda</span><br><strong style="font-family:'Inter',sans-serif;font-size:22px">${fmtBRL(produto.venda)}</strong></div>
-          <div><span style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px">Estoque</span><br><span class="stock-pill ${stockClass}">${qty} un</span></div>
-        </div>
-        ${isAdmin?`<div class="detail-actions">
-          <button class="btn btn-success" onclick="closeModal('modal-scanner-result');openVendaModal('${produto.ref}')" style="justify-content:center">💰 Venda</button>
-          <button class="btn btn-dark" onclick="closeModal('modal-scanner-result');openMovModalRef('${produto.ref}','entrada')" style="justify-content:center">📦 Entrada</button>
-          <button class="btn btn-outline" onclick="closeModal('modal-scanner-result');openMovModalRef('${produto.ref}','troca')" style="justify-content:center">↔️ Troca</button>
-        </div>`:''}
-      </div>`;
-  }
-  openModal('modal-scanner-result');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3556,9 +3178,7 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 document.getElementById('auth-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
 // Load jsQR dynamically (fallback for non-BarcodeDetector browsers)
-const jsQRScript = document.createElement('script');
-jsQRScript.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
-document.head.appendChild(jsQRScript);
+// end
 </script>
 </body>
 </html>
