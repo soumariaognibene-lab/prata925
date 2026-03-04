@@ -968,45 +968,102 @@ textarea.field-input { resize: vertical; min-height: 80px; }
 }
 .ring { transform: rotate(-90deg); }
 
-/* RESPONSIVE */
+/* SPINNER */
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(201,168,76,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* RESPONSIVE — MOBILE FIRST */
 @media (max-width: 768px) {
   :root { --sidebar-w: 260px; }
-  
-  .sidebar {
-    transform: translateX(-100%);
-  }
+
+  .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay.open { display: block; }
 
-  .topbar { left: 0; }
+  .topbar { left: 0; padding: 0 16px; }
   .topbar-menu-btn { display: flex; }
-  
+  .topbar-title { font-size: 16px; }
+  .topbar-actions .btn span { display: none; }
+  .topbar-actions .btn { padding: 8px 10px; }
+
   .main-content { margin-left: 0; }
-  
-  .page { padding: 16px; }
-  
+  .page { padding: 14px; }
+
   .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat-card { padding: 16px; }
-  .stat-value { font-size: 24px; }
+  .stat-card { padding: 14px 16px; }
+  .stat-value { font-size: 22px; }
+  .stat-icon { font-size: 22px; margin-bottom: 6px; }
 
   .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
-  
-  .page-header { flex-direction: column; align-items: flex-start; }
-  .search-bar { max-width: 100%; }
 
-  .topbar-title { font-size: 17px; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .page-header .topbar-actions { width: 100%; }
+  .page-header .topbar-actions .btn { flex: 1; justify-content: center; }
+  .search-bar { max-width: 100%; }
 
   .detail-actions { grid-template-columns: 1fr; }
 
-  .modal { border-radius: 16px; }
-  .modal-body { padding: 16px 20px; }
-  .modal-header { padding: 18px 20px 14px; }
-  .modal-footer { padding: 14px 20px 20px; }
+  /* Tables → card list on mobile */
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 600px; }
+
+  /* Modals full-screen on mobile */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { border-radius: 20px 20px 0 0; max-height: 95vh; max-width: 100%; }
+  .modal-lg { max-width: 100%; }
+  .modal-sm { max-width: 100%; }
+  .modal-body { padding: 14px 18px; }
+  .modal-header { padding: 18px 18px 12px; }
+  .modal-footer { padding: 12px 18px 24px; }
+
+  /* Cards */
+  .card-body { padding: 16px; }
+  .card-header { padding: 14px 16px 12px; }
+  .card-title { font-size: 15px; }
+
+  /* Auth card */
+  .auth-card { border-radius: 0; min-height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; justify-content: center; }
+
+  /* Chips scroll horizontal */
+  .filter-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; }
+
+  /* Toast */
+  #toast-container { left: 12px; right: 12px; bottom: 20px; top: auto; }
+  .toast { min-width: unset; max-width: 100%; width: 100%; }
+
+  /* Scanner */
+  #scanner-video-container video { max-height: 50vh; }
 }
 
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
-  .topbar-actions .btn span { display: none; }
+  .page { padding: 12px; }
+}
+
+/* Pull-to-refresh indicator */
+#ptr-indicator {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 0;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: height 0.1s;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
 }
 
 /* FILTER CHIPS */
@@ -1193,6 +1250,9 @@ textarea.field-input { resize: vertical; min-height: 80px; }
     <button class="btn-primary" onclick="doLogin()">Entrar →</button>
   </div>
 </div>
+
+<!-- PULL TO REFRESH -->
+<div id="ptr-indicator">↻ Atualizando...</div>
 
 <!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
@@ -1760,6 +1820,12 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <input class="field-input" id="v-valor" type="number" step="0.01" oninput="calcVendaLucro()">
         </div>
         <div class="field-group">
+          <label class="field-label">Quantidade *</label>
+          <input class="field-input" id="v-qtd" type="number" min="1" value="1" oninput="calcVendaLucro()">
+        </div>
+      </div>
+      <div class="form-row form-row-2" style="margin-top:14px">
+        <div class="field-group">
           <label class="field-label">Canal</label>
           <select class="field-input" id="v-canal">
             <option value="Presencial">Presencial</option>
@@ -1767,12 +1833,12 @@ textarea.field-input { resize: vertical; min-height: 80px; }
             <option value="Instagram">Instagram</option>
           </select>
         </div>
-      </div>
-      <div class="form-row form-row-2" style="margin-top:14px">
         <div class="field-group">
           <label class="field-label">Cliente (opcional)</label>
           <input class="field-input" id="v-cliente" placeholder="Nome do cliente">
         </div>
+      </div>
+      <div class="form-row form-row-2" style="margin-top:14px">
         <div class="field-group">
           <label class="field-label">Lucro Estimado</label>
           <div class="field-computed" id="v-lucro">—</div>
@@ -2555,7 +2621,10 @@ function printQR() {
 // ═══════════════════════════════════════════════════════
 async function startScanner() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
     scannerStream = stream;
     const video = document.getElementById('scanner-video');
     video.srcObject = stream;
@@ -2563,8 +2632,21 @@ async function startScanner() {
     document.getElementById('scanner-video-container').style.display='block';
     document.getElementById('scanner-active-controls').style.display='block';
 
-    // QR reading via jsQR (basic simulation with interval)
-    scannerInterval = setInterval(() => tryReadQR(video), 300);
+    // Prefer native BarcodeDetector (Chrome Android, modern browsers)
+    if('BarcodeDetector' in window) {
+      const formats = ['qr_code','code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','data_matrix','pdf417','aztec'];
+      try {
+        window._barcodeDetector = new BarcodeDetector({ formats });
+      } catch(e) {
+        window._barcodeDetector = new BarcodeDetector();
+      }
+      scannerInterval = setInterval(() => tryReadBarcode(video), 300);
+      toast('Scanner ativo (QR + Código de barras)', 'info', 2500);
+    } else {
+      // Fallback: jsQR for QR codes
+      scannerInterval = setInterval(() => tryReadQR(video), 300);
+      toast('Scanner ativo (QR Code)', 'info', 2500);
+    }
   } catch(e) {
     toast('Não foi possível acessar a câmera: '+e.message, 'error');
   }
@@ -2573,21 +2655,38 @@ async function startScanner() {
 function stopScanner() {
   if(scannerStream) { scannerStream.getTracks().forEach(t=>t.stop()); scannerStream=null; }
   if(scannerInterval) { clearInterval(scannerInterval); scannerInterval=null; }
-  document.getElementById('scanner-start-screen').style.display='block';
-  document.getElementById('scanner-video-container').style.display='none';
-  document.getElementById('scanner-active-controls').style.display='none';
+  window._barcodeDetector = null;
+  const ss = document.getElementById('scanner-start-screen');
+  const vc = document.getElementById('scanner-video-container');
+  const ac = document.getElementById('scanner-active-controls');
+  if(ss) ss.style.display='block';
+  if(vc) vc.style.display='none';
+  if(ac) ac.style.display='none';
 }
 
 let lastScanTime = 0;
+
+async function tryReadBarcode(video) {
+  if(Date.now()-lastScanTime < 1500) return;
+  if(!video.videoWidth || !window._barcodeDetector) return;
+  try {
+    const barcodes = await window._barcodeDetector.detect(video);
+    if(barcodes && barcodes.length > 0) {
+      lastScanTime = Date.now();
+      const raw = barcodes[0].rawValue.trim();
+      processScannedRef(raw.toUpperCase());
+    }
+  } catch(e) {}
+}
+
 function tryReadQR(video) {
-  if(Date.now()-lastScanTime < 2000) return;
+  if(Date.now()-lastScanTime < 1500) return;
   if(!video.videoWidth) return;
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0);
-  // Try to use jsQR if available
   if(window.jsQR) {
     const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
     const code = window.jsQR(imageData.data, imageData.width, imageData.height, {inversionAttempts:'dontInvert'});
@@ -2734,6 +2833,7 @@ function openVendaModal(ref=null) {
   document.getElementById('v-cliente').value='';
   document.getElementById('v-obs').value='';
   document.getElementById('v-lucro').textContent='—';
+  document.getElementById('v-qtd').value='1';
   document.getElementById('v-product-info').style.display='none';
   if(ref) {
     document.getElementById('v-ref').value=ref;
@@ -2766,10 +2866,11 @@ function updateVendaProduct() {
 function calcVendaLucro() {
   const ref = document.getElementById('v-ref').value.trim().toUpperCase();
   const valor = parseFloat(document.getElementById('v-valor').value)||0;
+  const qtd = parseInt(document.getElementById('v-qtd').value)||1;
   const p = cache.produtos.find(x=>x.ref===ref);
   if(p && valor > 0) {
-    const lucro = valor - p.custo;
-    document.getElementById('v-lucro').textContent = fmtBRL(lucro);
+    const lucro = (valor - p.custo) * qtd;
+    document.getElementById('v-lucro').textContent = fmtBRL(lucro) + (qtd>1?` (${qtd}x)`:'');
     document.getElementById('v-lucro').style.color = lucro>=0?'var(--success)':'var(--danger)';
   } else {
     document.getElementById('v-lucro').textContent = '—';
@@ -2779,17 +2880,28 @@ function calcVendaLucro() {
 async function saveVenda() {
   const ref = document.getElementById('v-ref').value.trim().toUpperCase();
   const valor = parseFloat(document.getElementById('v-valor').value);
+  const qtd = parseInt(document.getElementById('v-qtd').value)||1;
   const data = document.getElementById('v-data').value;
   if(!ref || !valor || !data) { toast('Preencha referência, valor e data', 'error'); return; }
   const p = cache.produtos.find(x=>x.ref===ref);
   if(!p) { toast('Produto não encontrado: '+ref, 'error'); return; }
-  const qty = getStockByRef(ref);
-  if(qty <= 0) { toast('Estoque insuficiente para '+ref, 'error'); return; }
+  const stock = getStockByRef(ref);
+  if(stock < qtd) { toast(`Estoque insuficiente! Disponível: ${stock} un`, 'error'); return; }
 
   const id = genId();
-  const lucro = valor - p.custo;
-  const venda = { id, data, ref, cliente:document.getElementById('v-cliente').value.trim(), canal:document.getElementById('v-canal').value, valor, custo:p.custo, lucro, obs:document.getElementById('v-obs').value.trim() };
-  const mov = { id:genId(), data, ref, tipo:'venda', qtd:1, obs:`Venda #${id.slice(-6)}` };
+  const lucroUnit = valor - p.custo;
+  const lucroTotal = lucroUnit * qtd;
+  const venda = {
+    id, data, ref,
+    cliente: document.getElementById('v-cliente').value.trim(),
+    canal: document.getElementById('v-canal').value,
+    valor: valor * qtd,
+    custo: p.custo * qtd,
+    lucro: lucroTotal,
+    qtd,
+    obs: document.getElementById('v-obs').value.trim()
+  };
+  const mov = { id:genId(), data, ref, tipo:'venda', qtd, obs:`Venda #${id.slice(-6)}` };
 
   try {
     showLoading(true);
@@ -2798,7 +2910,7 @@ async function saveVenda() {
     await loadAll();
     closeModal('modal-venda');
     renderVendas();
-    toast(`Venda registrada! Lucro: ${fmtBRL(lucro)}`);
+    toast(`Venda registrada! ${qtd>1?qtd+'x · ':''}Lucro: ${fmtBRL(lucroTotal)}`);
     if(currentPage==='dashboard') renderDashboard();
     if(currentPage==='estoque') renderEstoque();
   } catch(e) { toast('Erro ao salvar venda: '+e.message,'error'); }
@@ -3088,12 +3200,57 @@ async function removeConfigLogo() {
 }
 
 // ═══════════════════════════════════════════════════════
+// PULL TO REFRESH (mobile)
+// ═══════════════════════════════════════════════════════
+(function setupPTR() {
+  let startY = 0;
+  let pulling = false;
+  const threshold = 80;
+  const ptr = document.getElementById('ptr-indicator');
+  const mainEl = document.querySelector('.main-content');
+
+  document.addEventListener('touchstart', e => {
+    if(window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if(!pulling) return;
+    const dist = e.touches[0].clientY - startY;
+    if(dist > 0 && dist < threshold * 1.5) {
+      const h = Math.min(dist * 0.5, 52);
+      ptr.style.height = h + 'px';
+      ptr.textContent = dist > threshold ? '↻ Solte para atualizar' : '↓ Puxe para atualizar';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', async e => {
+    if(!pulling) return;
+    pulling = false;
+    const dist = e.changedTouches[0].clientY - startY;
+    if(dist > threshold && currentUser) {
+      ptr.style.height = '44px';
+      ptr.textContent = '↻ Atualizando...';
+      await loadAll();
+      if(currentPage) showPage(currentPage);
+      toast('Dados atualizados!', 'success', 1500);
+    }
+    ptr.style.transition = 'height 0.3s';
+    ptr.style.height = '0';
+    setTimeout(() => { ptr.style.transition = ''; }, 300);
+    startY = 0;
+  }, { passive: true });
+})();
+
+// ═══════════════════════════════════════════════════════
 // KEYBOARD ENTER on auth
 // ═══════════════════════════════════════════════════════
 document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('auth-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
-// Load jsQR dynamically
+// Load jsQR dynamically (fallback for non-BarcodeDetector browsers)
 const jsQRScript = document.createElement('script');
 jsQRScript.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
 document.head.appendChild(jsQRScript);
