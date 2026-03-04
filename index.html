@@ -1231,23 +1231,21 @@ textarea.field-input { resize: vertical; min-height: 80px; }
       <h1>PRATA 925</h1>
       <p>Sistema de Gestão</p>
     </div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="setAuthProfile('admin')">🏪 Loja Admin</button>
-      <button class="auth-tab" onclick="setAuthProfile('dist')">📦 Distribuidor</button>
-    </div>
     <div class="form-group">
-      <label class="form-label">Usuário</label>
-      <input class="form-input" id="auth-user" type="text" placeholder="Seu usuário" autocomplete="username">
+      <label class="form-label">E-mail</label>
+      <input class="form-input" id="auth-user" type="email" placeholder="seu@email.com" autocomplete="email">
     </div>
     <div class="form-group">
       <label class="form-label">Senha</label>
-      <input class="form-input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      <input class="form-input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()">
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
       <input type="checkbox" id="remember-me" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer">
       <label for="remember-me" style="color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer">Continuar conectado</label>
     </div>
-    <button class="btn-primary" onclick="doLogin()">Entrar →</button>
+    <button class="btn-primary" id="btn-login" onclick="doLogin()">Entrar →</button>
+    <p id="auth-error" style="color:#ff6b6b;font-size:13px;margin-top:8px;text-align:center;display:none"></p>
   </div>
 </div>
 
@@ -1876,6 +1874,30 @@ textarea.field-input { resize: vertical; min-height: 80px; }
   </div>
 </div>
 
+<!-- MODAL: CANCELAR VENDA -->
+<div class="modal-overlay" id="modal-cancelar-venda">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Cancelar Venda</span>
+      <button class="modal-close" onclick="closeModal('modal-cancelar-venda')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--charcoal-soft);font-size:14px;margin-bottom:16px" id="cancel-venda-info">
+        Esta ação irá estornar o estoque e marcar a venda como cancelada. <strong>Não pode ser desfeita.</strong>
+      </p>
+      <div class="field-group">
+        <label class="field-label">Motivo do cancelamento *</label>
+        <textarea class="field-input" id="cancel-motivo" rows="3"
+          placeholder="Ex: cliente desistiu, produto com defeito..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-cancelar-venda')">Voltar</button>
+      <button class="btn btn-danger" onclick="confirmarCancelamento()">⚠️ Confirmar Cancelamento</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: DELETE CONFIRM -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal modal-sm">
@@ -1895,53 +1917,141 @@ textarea.field-input { resize: vertical; min-height: 80px; }
 
 <script>
 // ═══════════════════════════════════════════════════════
-// SUPABASE CLIENT
+// SUPABASE CLIENT — com Supabase Auth
 // ═══════════════════════════════════════════════════════
 const SUPA_URL = 'https://gwpybtqygrnwxpvmzecz.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3cHlidHF5Z3Jud3hwdm16ZWN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTExNDIsImV4cCI6MjA4ODE4NzE0Mn0.hcylFNhNwVt6Md6nGp0WGIYxWIZs8xOPPhqxr0t3C1o';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3cHlidHF5Z3Jud3hwdm16ZWN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTExNDIsImV4cCI6MjA4ODE4NzE0Mn0.hcylFNhNwVt6Md6nGp0WGIYxWIZs8xOPPhqxr0t3C1o';
 
+// Token de sessão atual (renovado pelo auth)
+let _authToken = null;
+
+function _headers(extra={}) {
+  return {
+    apikey: SUPA_ANON,
+    Authorization: `Bearer ${_authToken || SUPA_ANON}`,
+    'Content-Type': 'application/json',
+    ...extra
+  };
+}
+
+// ─── AUTH ─────────────────────────────────────────────
+const supaAuth = {
+  async signIn(email, password) {
+    const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { apikey: SUPA_ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error_description || data.msg || 'Falha no login');
+    return data; // { access_token, refresh_token, user, ... }
+  },
+
+  async refreshSession(refresh_token) {
+    const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { apikey: SUPA_ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token })
+    });
+    const data = await r.json();
+    if(!r.ok) return null;
+    return data;
+  },
+
+  async signOut() {
+    if(!_authToken) return;
+    await fetch(`${SUPA_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: _headers()
+    });
+    _authToken = null;
+  }
+};
+
+// ─── REST API ─────────────────────────────────────────
 const supa = {
-  async select(table, filters={}) {
+  async select(table, filters={}, opts={}) {
     let url = `${SUPA_URL}/rest/v1/${table}?select=*&order=created_at.asc`;
     Object.entries(filters).forEach(([k,v]) => url += `&${k}=eq.${encodeURIComponent(v)}`);
-    const r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } });
+    if(opts.order) url = url.replace('order=created_at.asc', `order=${opts.order}`);
+    const r = await fetch(url, { headers: _headers() });
     if(!r.ok) throw new Error(await r.text());
     return r.json();
   },
+
   async upsert(table, data) {
     const r = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
       method: 'POST',
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=representation' },
+      headers: _headers({ Prefer: 'resolution=merge-duplicates,return=representation' }),
       body: JSON.stringify(data)
     });
     if(!r.ok) throw new Error(await r.text());
     return r.json();
   },
+
   async update(table, match, data) {
     let url = `${SUPA_URL}/rest/v1/${table}?`;
     Object.entries(match).forEach(([k,v]) => url += `${k}=eq.${encodeURIComponent(v)}&`);
     const r = await fetch(url, {
       method: 'PATCH',
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      headers: _headers({ Prefer: 'return=representation' }),
       body: JSON.stringify(data)
     });
     if(!r.ok) throw new Error(await r.text());
     return r.json();
   },
+
   async delete(table, match) {
     let url = `${SUPA_URL}/rest/v1/${table}?`;
     Object.entries(match).forEach(([k,v]) => url += `${k}=eq.${encodeURIComponent(v)}&`);
-    const r = await fetch(url, {
-      method: 'DELETE',
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
-    });
+    const r = await fetch(url, { method: 'DELETE', headers: _headers() });
     if(!r.ok) throw new Error(await r.text());
     return true;
+  },
+
+  // Chama função RPC (transacional)
+  async rpc(fnName, params={}) {
+    const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${fnName}`, {
+      method: 'POST',
+      headers: _headers(),
+      body: JSON.stringify(params)
+    });
+    const text = await r.text();
+    if(!r.ok) {
+      // Extrair mensagem amigável de erros do Postgres
+      try {
+        const err = JSON.parse(text);
+        const msg = err.message || err.hint || text;
+        // Tratar erros customizados das RPCs
+        if(msg.includes('ESTOQUE_INSUFICIENTE')) throw new Error('❌ Estoque insuficiente para registrar esta venda');
+        if(msg.includes('VENDA_JA_CANCELADA'))   throw new Error('⚠️ Esta venda já foi cancelada');
+        if(msg.includes('VENDA_NAO_ENCONTRADA')) throw new Error('❌ Venda não encontrada');
+        if(msg.includes('MOTIVO_OBRIGATORIO'))   throw new Error('⚠️ Informe o motivo do cancelamento');
+        throw new Error(msg);
+      } catch(parseErr) {
+        if(parseErr.message !== text) throw parseErr;
+        throw new Error(text);
+      }
+    }
+    try { return JSON.parse(text); } catch { return text; }
+  },
+
+  // Upload de arquivo para Storage
+  async uploadFile(bucket, path, file) {
+    const r = await fetch(`${SUPA_URL}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: { apikey: SUPA_ANON, Authorization: `Bearer ${_authToken || SUPA_ANON}`, 'Content-Type': file.type },
+      body: file
+    });
+    if(!r.ok) throw new Error('Erro no upload: ' + await r.text());
+    return `${SUPA_URL}/storage/v1/object/public/${bucket}/${path}`;
   }
 };
 
-// ─── IN-MEMORY CACHE (dados carregados do Supabase) ───
-const cache = { produtos:[], movimentacoes:[], vendas:[], config:{mult:2.6,nome_loja:'Prata 925',logo_loja:null} };
+// ─── CACHE ────────────────────────────────────────────
+const cache = {
+  produtos: [], movimentacoes: [], vendas: [], config: {mult:2.6, multiplicador:2.6, nome_loja:'Prata 925', logo_url:null}
+};
 
 async function loadAll() {
   showLoading(true);
@@ -1952,10 +2062,26 @@ async function loadAll() {
       supa.select('vendas'),
       supa.select('config')
     ]);
-    cache.produtos = prods.map(p => ({...p, desc: p.descricao, galeria: p.galeria||[]}));
+    cache.produtos = prods.map(p => ({...p,
+      // compatibilidade com campos antigos e novos
+      custo: p.custo,
+      venda: p.venda || p.preco_venda,
+      mult:  p.mult  || p.multiplicador || 2.6,
+      cat:   p.cat   || p.categoria,
+      foto:  p.foto  || p.foto_principal_url,
+      galeria: p.galeria || p.galeria_urls || [],
+      desc:  p.descricao || ''
+    }));
     cache.movimentacoes = movs;
     cache.vendas = vendas;
-    cache.config = cfgArr[0] || {mult:2.6,nome_loja:'Prata 925'};
+    const cfg = cfgArr[0] || {};
+    cache.config = {
+      mult:       cfg.mult || cfg.multiplicador || 2.6,
+      multiplicador: cfg.mult || cfg.multiplicador || 2.6,
+      nome_loja:  cfg.nome_loja || 'Prata 925',
+      logo_url:   cfg.logo_url || cfg.logo_loja || null,
+      logo_loja:  cfg.logo_url || cfg.logo_loja || null
+    };
   } catch(e) {
     toast('Erro ao carregar dados: '+e.message, 'error', 6000);
   }
@@ -1981,80 +2107,132 @@ let tempMainPhoto = null;
 let tempGallery = [];
 let editingRef = null;
 let deleteCallback = null;
-
-// Users
-const USERS = {
-  'mariaonb': { pass: 'Supersenha567@', role: 'admin', name: 'Maria' },
-  'sergiosal': { pass: 'supersenha321', role: 'dist', name: 'Sergio' }
-};
+let _cancelVendaId = null;
 
 // ═══════════════════════════════════════════════════════
-// AUTH
+// AUTH — Supabase Auth (email/senha)
 // ═══════════════════════════════════════════════════════
-let selectedProfile = 'admin';
+async function doLogin() {
+  const email = document.getElementById('auth-user').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const errEl = document.getElementById('auth-error');
+  const btn   = document.getElementById('btn-login');
 
-function setAuthProfile(p) {
-  selectedProfile = p;
-  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (p==='admin'&&i===0)||(p==='dist'&&i===1)));
-}
+  if(!email || !pass) { showAuthError('Preencha e-mail e senha'); return; }
 
-function doLogin() {
-  const u = document.getElementById('auth-user').value.trim();
-  const p = document.getElementById('auth-pass').value.trim();
-  const remember = document.getElementById('remember-me').checked;
-  if(USERS[u] && USERS[u].pass === p) {
-    currentUser = { ...USERS[u], username: u };
+  btn.textContent = 'Entrando...';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  try {
+    const session = await supaAuth.signIn(email, pass);
+    _authToken = session.access_token;
+
+    // Buscar role do usuário
+    const profiles = await supa.select('user_profiles', { id: session.user.id });
+    const profile = profiles[0] || { role: 'dist', name: email };
+
+    currentUser = {
+      id:       session.user.id,
+      email:    session.user.email,
+      role:     profile.role,
+      name:     profile.name || email,
+      username: email,
+      refresh_token: session.refresh_token
+    };
+
+    const remember = document.getElementById('remember-me').checked;
     if(remember) {
-      localStorage.setItem('session', JSON.stringify({username: u, ts: Date.now()}));
+      localStorage.setItem('p925_session', JSON.stringify({
+        refresh_token: session.refresh_token,
+        user_id: session.user.id,
+        ts: Date.now()
+      }));
     } else {
-      localStorage.removeItem('session');
+      localStorage.removeItem('p925_session');
     }
+
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initApp();
-  } else {
-    toast('Usuário ou senha incorretos', 'error');
+
+  } catch(e) {
+    showAuthError(e.message || 'E-mail ou senha incorretos');
+  } finally {
+    btn.textContent = 'Entrar →';
+    btn.disabled = false;
   }
 }
 
-function doLogout() {
-  localStorage.removeItem('session');
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  if(el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+async function doLogout() {
+  await supaAuth.signOut();
+  localStorage.removeItem('p925_session');
   currentUser = null;
+  _authToken = null;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
 
-// Auto-login se tiver sessão salva
-(function checkSession() {
+// Auto-login se tiver sessão salva (refresh token)
+(async function checkSession() {
   try {
-    const s = JSON.parse(localStorage.getItem('session'));
-    if(s && s.username && USERS[s.username]) {
-      // Sessão válida por 30 dias
-      if(Date.now() - s.ts < 30 * 24 * 60 * 60 * 1000) {
-        currentUser = { ...USERS[s.username], username: s.username };
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        initApp();
-      } else {
-        localStorage.removeItem('session');
-      }
+    const raw = localStorage.getItem('p925_session');
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    // Sessão válida por 30 dias
+    if(Date.now() - saved.ts > 30 * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem('p925_session'); return;
     }
-  } catch(e) {}
+    const session = await supaAuth.refreshSession(saved.refresh_token);
+    if(!session?.access_token) { localStorage.removeItem('p925_session'); return; }
+
+    _authToken = session.access_token;
+    const profiles = await fetch(
+      `${SUPA_URL}/rest/v1/user_profiles?id=eq.${session.user.id}&select=*`,
+      { headers: { apikey: SUPA_ANON, Authorization: `Bearer ${_authToken}` } }
+    ).then(r=>r.json());
+    const profile = profiles[0] || { role: 'dist', name: session.user.email };
+
+    currentUser = {
+      id: session.user.id,
+      email: session.user.email,
+      role: profile.role,
+      name: profile.name || session.user.email,
+      username: session.user.email,
+      refresh_token: session.refresh_token
+    };
+
+    localStorage.setItem('p925_session', JSON.stringify({
+      refresh_token: session.refresh_token,
+      user_id: session.user.id,
+      ts: Date.now()
+    }));
+
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } catch(e) {
+    localStorage.removeItem('p925_session');
+  }
 })();
 
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 async function initApp() {
-  document.getElementById('user-avatar').textContent = currentUser.name[0];
+  document.getElementById('user-avatar').textContent = currentUser.name[0].toUpperCase();
   document.getElementById('user-name').textContent = currentUser.name;
   document.getElementById('user-role').textContent = currentUser.role === 'admin' ? 'Loja Admin' : 'Distribuidor';
 
   renderNav();
   await loadAll();
-  await seedDemoData();
   applySidebarLoja();
-  showPage('dashboard');
+  showPage(currentUser.role === 'admin' ? 'dashboard' : 'distribuidor');
 
   // Set today's date on inputs
   const today_ = today();
@@ -2204,22 +2382,33 @@ async function seedDemoData() {
 function getStockByRef(ref) {
   let qty = 0;
   cache.movimentacoes.filter(m=>m.ref===ref).forEach(m => {
-    if(m.tipo==='entrada'||m.tipo==='devolucao') qty+=Number(m.qtd);
-    else if(m.tipo==='venda'||m.tipo==='troca') qty-=Number(m.qtd);
-    else if(m.tipo==='ajuste') qty+=Number(m.qtd);
+    if(m.sinal !== undefined) {
+      // Campo sinal disponível (schema novo)
+      qty += Number(m.sinal) * Number(m.qtd);
+    } else {
+      // Fallback compatibilidade schema antigo
+      if(m.tipo==='entrada'||m.tipo==='devolucao'||m.tipo==='estorno') qty += Number(m.qtd);
+      else if(m.tipo==='venda'||m.tipo==='troca') qty -= Number(m.qtd);
+      else if(m.tipo==='ajuste') qty += Number(m.qtd);
+    }
   });
-  return Math.max(0,qty);
+  return Math.max(0, qty);
 }
 
 function getAllStocks() {
   const stocks = {};
   cache.movimentacoes.forEach(m => {
-    if(!stocks[m.ref]) stocks[m.ref]=0;
-    if(m.tipo==='entrada'||m.tipo==='devolucao') stocks[m.ref]+=Number(m.qtd);
-    else if(m.tipo==='venda'||m.tipo==='troca') stocks[m.ref]-=Number(m.qtd);
-    else if(m.tipo==='ajuste') stocks[m.ref]+=Number(m.qtd);
+    if(!stocks[m.ref]) stocks[m.ref] = 0;
+    if(m.sinal !== undefined) {
+      stocks[m.ref] += Number(m.sinal) * Number(m.qtd);
+    } else {
+      if(m.tipo==='entrada'||m.tipo==='devolucao'||m.tipo==='estorno') stocks[m.ref] += Number(m.qtd);
+      else if(m.tipo==='venda'||m.tipo==='troca') stocks[m.ref] -= Number(m.qtd);
+      else if(m.tipo==='ajuste') stocks[m.ref] += Number(m.qtd);
+    }
   });
-  Object.keys(stocks).forEach(k=>{if(stocks[k]<0)stocks[k]=0;});
+  // Nunca mascarar negativo — deixar como está para auditoria, mas exibir 0
+  Object.keys(stocks).forEach(k => { if(stocks[k] < 0) stocks[k] = 0; });
   return stocks;
 }
 
@@ -2717,21 +2906,33 @@ function renderEstoque() {
 // VENDAS
 // ═══════════════════════════════════════════════════════
 function renderVendas() {
-  const vendas = cache.vendas;
+  const allVendas = cache.vendas;
   const prods = cache.produtos;
   const month = document.getElementById('filter-mes-venda')?.value||thisMonth();
-  const filtered = vendas.filter(v=>v.data.startsWith(month)).sort((a,b)=>b.data.localeCompare(a.data));
 
-  const totalVendas = filtered.reduce((s,v)=>s+v.valor,0);
-  const totalLucro = filtered.reduce((s,v)=>s+v.lucro,0);
-  const totalCusto = filtered.reduce((s,v)=>s+v.custo,0);
+  // Filtrar por mês (YYYY-MM): incluir data >= YYYY-MM-01 e data <= YYYY-MM-31 corretamente
+  const [ano, mes] = month.split('-').map(Number);
+  const fimMes = new Date(ano, mes, 0).toISOString().split('T')[0]; // último dia real do mês
+  const filtered = allVendas
+    .filter(v => v.data >= month+'-01' && v.data <= fimMes)
+    .sort((a,b) => b.data.localeCompare(a.data));
 
-  document.getElementById('vendas-count').textContent = `${filtered.length} venda${filtered.length!==1?'s':''} em ${month}`;
+  // Separar OK × canceladas para stats corretos
+  const ok         = filtered.filter(v => v.status !== 'cancelada');
+  const canceladas = filtered.filter(v => v.status === 'cancelada');
+
+  const totalVendas = ok.reduce((s,v)=>s+(v.valor||v.valor_total||0),0);
+  const totalLucro  = ok.reduce((s,v)=>s+(v.lucro||v.lucro_total||0),0);
+  const totalCusto  = ok.reduce((s,v)=>s+(v.custo||v.custo_unit||0),0);
+
+  document.getElementById('vendas-count').textContent =
+    `${ok.length} venda${ok.length!==1?'s':''} OK${canceladas.length?` · ${canceladas.length} cancelada${canceladas.length!==1?'s':''}`:''} em ${month}`;
+
   document.getElementById('vendas-stats').innerHTML = `
-    <div class="stat-card green"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(totalVendas)}</div><div class="stat-label">Total de Vendas</div></div>
+    <div class="stat-card green"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(totalVendas)}</div><div class="stat-label">Total Vendas (OK)</div></div>
     <div class="stat-card"><span class="stat-icon">✨</span><div class="stat-value">${fmtBRL(totalLucro)}</div><div class="stat-label">Lucro Total</div></div>
     <div class="stat-card blue"><span class="stat-icon">📦</span><div class="stat-value">${fmtBRL(totalCusto)}</div><div class="stat-label">Custo Total</div></div>
-    <div class="stat-card orange"><span class="stat-icon">#️⃣</span><div class="stat-value">${filtered.length}</div><div class="stat-label">Qtd. Vendas</div></div>
+    <div class="stat-card orange"><span class="stat-icon">⚠️</span><div class="stat-value">${canceladas.length}</div><div class="stat-label">Canceladas</div></div>
   `;
 
   const tbody = document.getElementById('tbody-vendas');
@@ -2739,21 +2940,42 @@ function renderVendas() {
   if(!filtered.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
-  tbody.innerHTML = filtered.map((v,i)=>{
-    const p = prods.find(x=>x.ref===v.ref)||{};
-    return `<tr>
+  const canalColors = {
+    instagram: 'rgba(193,53,132,0.12)', whatsapp: 'rgba(37,211,102,0.12)',
+    presencial: 'rgba(201,168,76,0.12)', outro: 'rgba(140,140,140,0.12)'
+  };
+  const canalText = {
+    instagram: '#C13584', whatsapp: '#25D366',
+    presencial: 'var(--gold-dark)', outro: 'var(--silver)'
+  };
+
+  tbody.innerHTML = filtered.map((v,i) => {
+    const p       = prods.find(x=>x.ref===v.ref)||{};
+    const isCanceled = v.status === 'cancelada';
+    const valor   = v.valor || v.valor_total || 0;
+    const lucro   = v.lucro || v.lucro_total || 0;
+    const custo   = v.custo || v.custo_unit  || 0;
+    const canal   = (v.canal||'').toLowerCase();
+    return `<tr style="${isCanceled?'opacity:0.55;text-decoration:line-through':''}">
       <td style="font-family:monospace;font-size:12px;color:var(--silver)">#${String(filtered.length-i).padStart(3,'0')}</td>
       <td>${fmtDate(v.data)}</td>
       <td><div class="product-cell">
         <div class="product-thumb">${getCatEmoji(p.cat)}</div>
         <div><div class="product-name">${p.nome||v.ref}</div><div class="product-ref">${v.ref}</div></div>
       </div></td>
-      <td>${v.cliente||'—'}</td>
-      <td><span class="badge" style="background:${v.canal==='Instagram'?'rgba(193,53,132,0.1)':v.canal==='WhatsApp'?'rgba(37,211,102,0.1)':'rgba(201,168,76,0.1)'};color:${v.canal==='Instagram'?'#C13584':v.canal==='WhatsApp'?'#25D366':'var(--gold-dark)'}">${v.canal}</span></td>
-      <td style="font-weight:600">${fmtBRL(v.valor)}</td>
-      <td style="color:var(--silver)">${fmtBRL(v.custo)}</td>
-      <td style="color:var(--success);font-weight:600">${fmtBRL(v.lucro)}</td>
-      <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteVenda('${v.id}')">🗑</button>`:'—'}</td>
+      <td>${v.cliente||v.cliente_nome||'—'}</td>
+      <td><span class="badge" style="background:${canalColors[canal]||canalColors.outro};color:${canalText[canal]||canalText.outro}">${v.canal||'—'}</span></td>
+      <td style="font-weight:600">${fmtBRL(valor)}</td>
+      <td style="color:var(--silver)">${fmtBRL(custo)}</td>
+      <td style="color:${isCanceled?'var(--silver)':'var(--success)'};font-weight:600">${fmtBRL(lucro)}</td>
+      <td>
+        ${isCanceled
+          ? `<span class="badge" style="background:rgba(192,57,43,0.12);color:var(--danger);font-size:11px">CANCELADA</span>`
+          : currentUser.role==='admin'
+            ? `<button class="btn btn-danger btn-sm" onclick="cancelarVenda('${v.id}')" title="Cancelar venda">✕ Cancelar</button>`
+            : '—'
+        }
+      </td>
     </tr>`;
   }).join('');
 }
@@ -2809,56 +3031,96 @@ function calcVendaLucro() {
 }
 
 async function saveVenda() {
-  const ref = document.getElementById('v-ref').value.trim().toUpperCase();
+  const ref   = document.getElementById('v-ref').value.trim().toUpperCase();
   const valor = parseFloat(document.getElementById('v-valor').value);
-  const qtd = parseInt(document.getElementById('v-qtd').value)||1;
-  const data = document.getElementById('v-data').value;
-  if(!ref || !valor || !data) { toast('Preencha referência, valor e data', 'error'); return; }
+  const qtd   = parseInt(document.getElementById('v-qtd').value)||1;
+  const data  = document.getElementById('v-data').value;
+
+  // Validações client-side
+  if(!ref)     { toast('Informe a referência do produto', 'error'); return; }
+  if(!valor || valor <= 0) { toast('Informe um valor de venda válido', 'error'); return; }
+  if(qtd < 1)  { toast('Quantidade deve ser ≥ 1', 'error'); return; }
+  if(!data)    { toast('Informe a data da venda', 'error'); return; }
+
   const p = cache.produtos.find(x=>x.ref===ref);
   if(!p) { toast('Produto não encontrado: '+ref, 'error'); return; }
-  const stock = getStockByRef(ref);
-  if(stock < qtd) { toast(`Estoque insuficiente! Disponível: ${stock} un`, 'error'); return; }
 
-  const id = genId();
-  const lucroUnit = valor - p.custo;
+  // Checagem de estoque local (pré-validação — servidor confirma com lock)
+  const stock = getStockByRef(ref);
+  if(stock < qtd) {
+    toast(`Estoque insuficiente! Disponível: ${stock} un`, 'error');
+    return;
+  }
+
+  const id        = genId();
+  const lucroUnit  = valor - p.custo;
   const lucroTotal = lucroUnit * qtd;
-  const venda = {
-    id, data, ref,
-    cliente: document.getElementById('v-cliente').value.trim(),
-    canal: document.getElementById('v-canal').value,
-    valor: valor * qtd,
-    custo: p.custo * qtd,
-    lucro: lucroTotal,
-    qtd,
-    obs: document.getElementById('v-obs').value.trim()
-  };
-  const mov = { id:genId(), data, ref, tipo:'venda', qtd, obs:`Venda #${id.slice(-6)}` };
 
   try {
     showLoading(true);
-    await supa.upsert('vendas', venda);
-    await supa.upsert('movimentacoes', mov);
+
+    // Registra via RPC transacional (lock + checagem de estoque no servidor)
+    await supa.rpc('registrar_venda', {
+      p_id:      id,
+      p_data:    data,
+      p_ref:     ref,
+      p_qtd:     qtd,
+      p_cliente: document.getElementById('v-cliente').value.trim() || null,
+      p_canal:   document.getElementById('v-canal').value,
+      p_valor:   valor * qtd,
+      p_custo:   p.custo * qtd,
+      p_lucro:   lucroTotal,
+      p_obs:     document.getElementById('v-obs').value.trim() || null,
+      p_user_id: currentUser?.id || null
+    });
+
     await loadAll();
     closeModal('modal-venda');
     refreshAllPages();
-    toast(`Venda registrada! ${qtd>1?qtd+'x · ':''}Lucro: ${fmtBRL(lucroTotal)}`);
-  } catch(e) { toast('Erro ao salvar venda: '+e.message,'error'); }
-  showLoading(false);
+    toast(`✅ Venda registrada! ${qtd>1?qtd+'x · ':''}Lucro: ${fmtBRL(lucroTotal)}`);
+  } catch(e) {
+    toast(e.message || 'Erro ao registrar venda', 'error', 5000);
+  } finally {
+    showLoading(false);
+  }
 }
 
-function deleteVenda(id) {
-  confirmDelete(async () => {
-    try {
-      showLoading(true);
-      await supa.delete('vendas', {id});
-      const relMov = cache.movimentacoes.find(m=>m.tipo==='venda'&&m.obs&&m.obs.includes(id.slice(-6)));
-      if(relMov) await supa.delete('movimentacoes', {id: relMov.id});
-      await loadAll();
-      refreshAllPages();
-      toast('Venda removida', 'warning');
-    } catch(e) { toast('Erro: '+e.message,'error'); }
+// Abre modal de cancelamento (substitui deleteVenda)
+function cancelarVenda(id) {
+  const v = cache.vendas.find(x=>x.id===id);
+  if(!v) { toast('Venda não encontrada', 'error'); return; }
+  if(v.status === 'cancelada') { toast('Esta venda já foi cancelada', 'warning'); return; }
+
+  _cancelVendaId = id;
+  document.getElementById('cancel-motivo').value = '';
+  document.getElementById('cancel-venda-info').innerHTML =
+    `Venda de <strong>${v.qtd}x ${v.ref}</strong> — ${fmtBRL(v.valor)} em ${fmtDate(v.data)}<br>
+     Esta ação estornará o estoque e não pode ser desfeita.`;
+  openModal('modal-cancelar-venda');
+}
+
+async function confirmarCancelamento() {
+  const motivo = document.getElementById('cancel-motivo').value.trim();
+  if(!motivo) { toast('Informe o motivo do cancelamento', 'error'); return; }
+  if(!_cancelVendaId) return;
+
+  try {
+    showLoading(true);
+    await supa.rpc('cancelar_venda', {
+      p_venda_id: _cancelVendaId,
+      p_motivo:   motivo,
+      p_user_id:  currentUser?.id || null
+    });
+    await loadAll();
+    closeModal('modal-cancelar-venda');
+    refreshAllPages();
+    toast('Venda cancelada e estoque estornado', 'warning');
+  } catch(e) {
+    toast(e.message || 'Erro ao cancelar venda', 'error', 5000);
+  } finally {
     showLoading(false);
-  });
+    _cancelVendaId = null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2933,33 +3195,42 @@ async function saveMov() {
 // RELATÓRIOS
 // ═══════════════════════════════════════════════════════
 function renderRelatorios() {
-  const ini = document.getElementById('rel-inicio')?.value||thisMonth();
-  const fim = document.getElementById('rel-fim')?.value||thisMonth();
-  const vendas = cache.vendas.filter(v=>v.data>=ini&&v.data<=fim+'-31');
-  const prods = cache.produtos;
+  const iniMes = document.getElementById('rel-inicio')?.value || thisMonth();
+  const fimMes = document.getElementById('rel-fim')?.value    || thisMonth();
+  const prods  = cache.produtos;
 
-  const totalVendas = vendas.reduce((s,v)=>s+v.valor,0);
-  const totalLucro = vendas.reduce((s,v)=>s+v.lucro,0);
-  const totalCusto = vendas.reduce((s,v)=>s+v.custo,0);
-  const margemPct = totalVendas>0?((totalLucro/totalVendas)*100).toFixed(1)+'%':'0%';
+  // Datas reais: início = primeiro dia do mês ini, fim = último dia do mês fim
+  const iniDate = iniMes + '-01';
+  const [fimAno, fimMesNum] = fimMes.split('-').map(Number);
+  const fimDate = new Date(fimAno, fimMesNum, 0).toISOString().split('T')[0]; // último dia real
+
+  const todasVendas    = cache.vendas.filter(v => v.data >= iniDate && v.data <= fimDate);
+  const vendas         = todasVendas.filter(v => v.status !== 'cancelada'); // apenas OK
+  const canceladas     = todasVendas.filter(v => v.status === 'cancelada');
+
+  const totalVendas = vendas.reduce((s,v)=>s+(v.valor||v.valor_total||0),0);
+  const totalLucro  = vendas.reduce((s,v)=>s+(v.lucro||v.lucro_total||0),0);
+  const totalCusto  = vendas.reduce((s,v)=>s+(v.custo||v.custo_unit||0),0);
+  const margemPct   = totalVendas > 0 ? ((totalLucro/totalVendas)*100).toFixed(1)+'%' : '0%';
+  const vlCancelado = canceladas.reduce((s,v)=>s+(v.valor||v.valor_total||0),0);
 
   document.getElementById('rel-stats').innerHTML = `
-    <div class="stat-card green"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(totalVendas)}</div><div class="stat-label">Receita Total</div></div>
+    <div class="stat-card green"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(totalVendas)}</div><div class="stat-label">Receita (vendas OK)</div></div>
     <div class="stat-card"><span class="stat-icon">✨</span><div class="stat-value">${fmtBRL(totalLucro)}</div><div class="stat-label">Lucro Total</div></div>
     <div class="stat-card blue"><span class="stat-icon">📊</span><div class="stat-value">${margemPct}</div><div class="stat-label">Margem Líquida</div></div>
-    <div class="stat-card orange"><span class="stat-icon">#️⃣</span><div class="stat-value">${vendas.length}</div><div class="stat-label">Total Vendas</div></div>
+    <div class="stat-card orange"><span class="stat-icon">⚠️</span><div class="stat-value">${canceladas.length}</div><div class="stat-label">Canceladas ${vlCancelado>0?'('+fmtBRL(vlCancelado)+')':''}</div></div>
   `;
 
-  // Top produtos
+  // Top produtos (apenas vendas OK)
   const prodVendas = {};
-  vendas.forEach(v=>{ prodVendas[v.ref]=(prodVendas[v.ref]||0)+v.valor; });
-  const top = Object.entries(prodVendas).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  vendas.forEach(v=>{ prodVendas[v.ref]=(prodVendas[v.ref]||0)+(v.valor||v.valor_total||0); });
+  const top  = Object.entries(prodVendas).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const maxV = top[0]?.[1]||1;
   document.getElementById('rel-top-produtos').innerHTML = top.length ? `
     <div class="bar-chart">${top.map(([ref,val])=>{
       const p=prods.find(x=>x.ref===ref)||{};
       return `<div class="bar-row">
-        <span class="bar-label" style="font-size:11px">${ref}</span>
+        <span class="bar-label" style="font-size:11px">${p.nome||ref}</span>
         <div class="bar-track"><div class="bar-fill" style="width:${(val/maxV*100).toFixed(0)}%"></div></div>
         <span class="bar-value">${fmtBRL(val)}</span>
       </div>`;
@@ -2967,7 +3238,7 @@ function renderRelatorios() {
 
   // Por categoria
   const catVendas = {};
-  vendas.forEach(v=>{ const p=prods.find(x=>x.ref===v.ref)||{}; const c=p.cat||'?'; catVendas[c]=(catVendas[c]||0)+v.valor; });
+  vendas.forEach(v=>{ const p=prods.find(x=>x.ref===v.ref)||{}; const c=p.cat||'?'; catVendas[c]=(catVendas[c]||0)+(v.valor||v.valor_total||0); });
   const catMax = Math.max(...Object.values(catVendas),1);
   const catColors = {anel:'var(--gold)',brinco:'var(--info)',colar:'#8E44AD',pulseira:'var(--success)',tornozeleira:'var(--warning)',pingente:'var(--danger)'};
   document.getElementById('rel-cat-chart').innerHTML = Object.entries(catVendas).length ? `
@@ -2983,31 +3254,57 @@ function renderRelatorios() {
 // DISTRIBUIDOR
 // ═══════════════════════════════════════════════════════
 function renderDistribuidor() {
-  const ini = document.getElementById('dist-inicio')?.value||'';
-  const fim = document.getElementById('dist-fim')?.value||'';
-  const prods = cache.produtos;
-  const movs = cache.movimentacoes;
+  const iniMes = document.getElementById('dist-inicio')?.value||'';
+  const fimMes = document.getElementById('dist-fim')?.value||'';
+  const prods  = cache.produtos;
+  const movs   = cache.movimentacoes;
   const vendas = cache.vendas;
 
-  const filteredVendas = vendas.filter(v=>(!ini||v.data>=ini)&&(!fim||v.data<=fim+'-31'));
-  const totalReceber = filteredVendas.reduce((s,v)=>s+v.custo,0);
+  // Datas reais — sem concatenar '-31'
+  const iniDate = iniMes ? iniMes + '-01' : '';
+  let   fimDate = '';
+  if(fimMes) {
+    const [fa, fm] = fimMes.split('-').map(Number);
+    fimDate = new Date(fa, fm, 0).toISOString().split('T')[0];
+  }
+
+  // Apenas vendas OK no período
+  const filteredVendas = vendas.filter(v =>
+    v.status !== 'cancelada' &&
+    (!iniDate || v.data >= iniDate) &&
+    (!fimDate || v.data <= fimDate)
+  );
+
+  // Total a receber = custo * qtd das vendas OK no período
+  const totalReceber = filteredVendas.reduce((s,v) => {
+    const custo = v.custo || v.custo_unit || 0;
+    return s + custo;
+  }, 0);
 
   document.getElementById('dist-total-receber').textContent = fmtBRL(totalReceber);
-  document.getElementById('dist-periodo-label').textContent = ini||fim ? `${ini||'início'} a ${fim||'atual'}` : 'Período completo';
+  document.getElementById('dist-periodo-label').textContent =
+    iniDate||fimDate ? `${iniMes||'início'} a ${fimMes||'atual'}` : 'Período completo';
 
   const stocks = getAllStocks();
-  const tbody = document.getElementById('tbody-dist');
-  tbody.innerHTML = prods.map(p=>{
-    const entradas = movs.filter(m=>m.ref===p.ref&&m.tipo==='entrada').reduce((s,m)=>s+Number(m.qtd),0);
-    const vendidasFiltradas = filteredVendas.filter(v=>v.ref===p.ref).length;
-    const vendidasTotal = vendas.filter(v=>v.ref===p.ref).length;
-    const estoque = stocks[p.ref]||0;
-    const aReceber = vendidasFiltradas * p.custo;
+  const tbody  = document.getElementById('tbody-dist');
+  tbody.innerHTML = prods.map(p => {
+    // Total enviado (entradas)
+    const entradas = movs
+      .filter(m => m.ref===p.ref && (m.tipo==='entrada'))
+      .reduce((s,m) => s+Number(m.qtd), 0);
+
+    // Vendas OK no período
+    const vendidasFiltradas = filteredVendas.filter(v => v.ref===p.ref);
+    const qtdVendida = vendidasFiltradas.reduce((s,v) => s+Number(v.qtd||1), 0);
+
+    const estoque    = stocks[p.ref] || 0;
+    const aReceber   = vendidasFiltradas.reduce((s,v) => s+(v.custo||v.custo_unit||0), 0);
+
     return `<tr>
       <td style="font-family:monospace;font-weight:600;color:var(--gold-dark)">${p.ref}</td>
       <td>${p.nome}</td>
       <td style="text-align:center">${entradas}</td>
-      <td style="text-align:center;font-weight:600;color:var(--success)">${vendidasFiltradas}</td>
+      <td style="text-align:center;font-weight:600;color:var(--success)">${qtdVendida||'—'}</td>
       <td style="text-align:center"><span class="stock-pill ${estoque===0?'zero':estoque<=2?'low':'ok'}">${estoque}</span></td>
       <td>${fmtBRL(p.custo)}</td>
       <td style="font-weight:600;color:var(--charcoal)">${aReceber>0?fmtBRL(aReceber):'—'}</td>
@@ -3021,10 +3318,10 @@ function renderDistribuidor() {
 function renderConfig() {
   const cfg = cache.config;
 
-  // Margem
+  // Multiplicador
   const multEl = document.getElementById('config-mult');
   if(multEl) {
-    multEl.value = cfg.mult||2.6;
+    multEl.value = cfg.mult || cfg.multiplicador || 2.6;
     multEl.oninput = () => {
       const m = parseFloat(multEl.value)||2.6;
       const sug = calcPrecoSugerido(100, m);
@@ -3034,9 +3331,10 @@ function renderConfig() {
 
   // Loja
   document.getElementById('config-nome-loja').value = cfg.nome_loja||'';
+  const logo    = cfg.logo_url || cfg.logo_loja || null;
   const preview = document.getElementById('config-logo-preview');
-  if(cfg.logo_loja) {
-    preview.innerHTML = `<img src="${cfg.logo_loja}" style="width:100%;height:100%;object-fit:cover">`;
+  if(logo) {
+    preview.innerHTML = `<img src="${logo}" style="width:100%;height:100%;object-fit:cover">`;
   } else {
     preview.innerHTML = '◆';
   }
@@ -3046,9 +3344,11 @@ async function saveConfig() {
   try {
     showLoading(true);
     const mult = parseFloat(document.getElementById('config-mult').value)||2.6;
-    await supa.update('config', {id:1}, {mult});
+    // Tenta ambos os nomes de campo para compatibilidade
+    await supa.update('config', {id:1}, {mult, multiplicador: mult});
     cache.config.mult = mult;
-    toast('Configurações de margem salvas!');
+    cache.config.multiplicador = mult;
+    toast('Multiplicador salvo!');
   } catch(e) { toast('Erro: '+e.message,'error'); }
   showLoading(false);
 }
@@ -3066,9 +3366,9 @@ async function saveConfigLoja() {
 }
 
 function applySidebarLoja() {
-  const cfg = cache.config;
-  const nome = cfg.nome_loja||'Prata 925';
-  const logo = cfg.logo_loja||null;
+  const cfg  = cache.config;
+  const nome = cfg.nome_loja || 'Prata 925';
+  const logo = cfg.logo_url  || cfg.logo_loja || null;
   document.getElementById('sidebar-nome-loja').textContent = nome;
   document.title = nome + ' · Sistema de Gestão';
   const logoEl = document.getElementById('sidebar-logo-img');
@@ -3085,7 +3385,8 @@ function handleConfigLogoInput(event) {
   readFileAsDataURL(file, async url => {
     try {
       showLoading(true);
-      await supa.update('config', {id:1}, {logo_loja: url});
+      await supa.update('config', {id:1}, {logo_url: url, logo_loja: url});
+      cache.config.logo_url  = url;
       cache.config.logo_loja = url;
       document.getElementById('config-logo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
       applySidebarLoja();
@@ -3104,7 +3405,8 @@ function handleConfigLogoDrop(event) {
   readFileAsDataURL(file, async url => {
     try {
       showLoading(true);
-      await supa.update('config', {id:1}, {logo_loja: url});
+      await supa.update('config', {id:1}, {logo_url: url, logo_loja: url});
+      cache.config.logo_url  = url;
       cache.config.logo_loja = url;
       document.getElementById('config-logo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
       applySidebarLoja();
@@ -3117,7 +3419,8 @@ function handleConfigLogoDrop(event) {
 async function removeConfigLogo() {
   try {
     showLoading(true);
-    await supa.update('config', {id:1}, {logo_loja: null});
+    await supa.update('config', {id:1}, {logo_url: null, logo_loja: null});
+    cache.config.logo_url  = null;
     cache.config.logo_loja = null;
     document.getElementById('config-logo-preview').innerHTML = '◆';
     applySidebarLoja();
