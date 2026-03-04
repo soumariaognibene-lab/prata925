@@ -1180,16 +1180,17 @@ textarea.field-input { resize: vertical; min-height: 80px; }
     </div>
     <div class="form-group">
       <label class="form-label">Usuário</label>
-      <input class="form-input" id="auth-user" type="text" placeholder="admin / distribuidor" value="admin">
+      <input class="form-input" id="auth-user" type="text" placeholder="Seu usuário" autocomplete="username">
     </div>
     <div class="form-group">
       <label class="form-label">Senha</label>
-      <input class="form-input" id="auth-pass" type="password" placeholder="••••••••" value="123456">
+      <input class="form-input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <input type="checkbox" id="remember-me" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer">
+      <label for="remember-me" style="color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer">Continuar conectado</label>
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar →</button>
-    <p style="text-align:center;margin-top:20px;font-size:12px;color:rgba(255,255,255,0.3);">
-      Admin: admin / 123456 · Dist: distribuidor / dist123
-    </p>
   </div>
 </div>
 
@@ -1962,8 +1963,8 @@ let deleteCallback = null;
 
 // Users
 const USERS = {
-  'admin': { pass: '123456', role: 'admin', name: 'Administrador' },
-  'distribuidor': { pass: 'dist123', role: 'dist', name: 'Distribuidor' }
+  'mariaonb': { pass: 'Supersenha567@', role: 'admin', name: 'Maria' },
+  'sergiosal': { pass: 'supersenha321', role: 'dist', name: 'Sergio' }
 };
 
 // ═══════════════════════════════════════════════════════
@@ -1974,15 +1975,19 @@ let selectedProfile = 'admin';
 function setAuthProfile(p) {
   selectedProfile = p;
   document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (p==='admin'&&i===0)||(p==='dist'&&i===1)));
-  if(p==='admin') { document.getElementById('auth-user').value='admin'; document.getElementById('auth-pass').value='123456'; }
-  else { document.getElementById('auth-user').value='distribuidor'; document.getElementById('auth-pass').value='dist123'; }
 }
 
 function doLogin() {
   const u = document.getElementById('auth-user').value.trim();
   const p = document.getElementById('auth-pass').value.trim();
+  const remember = document.getElementById('remember-me').checked;
   if(USERS[u] && USERS[u].pass === p) {
     currentUser = { ...USERS[u], username: u };
+    if(remember) {
+      localStorage.setItem('session', JSON.stringify({username: u, ts: Date.now()}));
+    } else {
+      localStorage.removeItem('session');
+    }
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initApp();
@@ -1993,10 +1998,29 @@ function doLogin() {
 
 function doLogout() {
   stopScanner();
+  localStorage.removeItem('session');
   currentUser = null;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
+
+// Auto-login se tiver sessão salva
+(function checkSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem('session'));
+    if(s && s.username && USERS[s.username]) {
+      // Sessão válida por 30 dias
+      if(Date.now() - s.ts < 30 * 24 * 60 * 60 * 1000) {
+        currentUser = { ...USERS[s.username], username: s.username };
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        initApp();
+      } else {
+        localStorage.removeItem('session');
+      }
+    }
+  } catch(e) {}
+})();
 
 // ═══════════════════════════════════════════════════════
 // INIT
