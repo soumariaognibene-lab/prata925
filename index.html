@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Prata 925 · Sistema de Gestão</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --gold: #C9A84C;
@@ -735,15 +734,77 @@ textarea.field-input { resize: vertical; min-height: 80px; }
 }
 
 /* SCANNER */
-/* QR Code display */
-.qr-display {
+/* ── FOTOS DE REFERÊNCIA (object-fit:contain, nunca corta) ── */
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.ref-thumb {
+  position: relative;
+  aspect-ratio: 4/3;
+  background: var(--cream-dark);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--cream-dark);
+  cursor: zoom-in;
+  transition: border-color 0.2s;
+}
+.ref-thumb:hover { border-color: var(--gold); }
+.ref-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;  /* NUNCA corta */
+  padding: 6px;
+}
+.ref-thumb .remove-btn {
+  position: absolute;
+  top: 4px; right: 4px;
+  background: rgba(192,57,43,0.85);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  font-size: 12px;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 20px;
-  background: var(--cream);
-  border-radius: 12px;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.ref-thumb:hover .remove-btn { opacity: 1; }
+
+/* Lightbox para referências */
+#lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+#lightbox-overlay.open { display: flex; }
+#lightbox-overlay img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+#lightbox-overlay button {
+  position: fixed;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px; height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
 
 /* LOW STOCK */
@@ -1345,6 +1406,11 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         </div>
       </div>
       <div class="filter-chips" id="filter-categorias"></div>
+      <div style="padding:0 0 8px 2px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="toggle-inativos" onchange="renderProdutos()"
+          style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">
+        <label for="toggle-inativos" style="font-size:12px;color:var(--silver);cursor:pointer">Mostrar inativos</label>
+      </div>
 
       <!-- DESKTOP: tabela -->
       <div class="card desktop-only">
@@ -1708,10 +1774,10 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         <div class="margin-item"><div class="val" id="mp-margem">—</div><div class="lbl">Margem</div></div>
       </div>
 
-      <div class="section-divider">Fotos</div>
+      <div class="section-divider">Fotos do Produto</div>
       <div class="field-group">
         <label class="field-label">Foto Principal</label>
-        <div class="drop-zone" id="dropzone-main" onclick="triggerFileInput('file-main')" ondragover="e.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'main')">
+        <div class="drop-zone" id="dropzone-main" onclick="triggerFileInput('file-main')" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'main')">
           <div class="drop-zone-icon">📷</div>
           <div class="drop-zone-text"><strong>Clique ou arraste</strong> para fazer upload<br><span style="font-size:12px">JPG, PNG, WEBP • Câmera do celular suportada</span></div>
           <input type="file" id="file-main" accept="image/*" capture="environment" onchange="handleFileInput(event,'main')">
@@ -1719,13 +1785,23 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         <div id="preview-main" class="photo-preview-grid"></div>
       </div>
       <div class="field-group" style="margin-top:14px">
-        <label class="field-label">Galeria de Fotos</label>
-        <div class="drop-zone" id="dropzone-gallery" onclick="triggerFileInput('file-gallery')" ondragover="e.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'gallery')">
+        <label class="field-label">Galeria de Fotos do Produto</label>
+        <div class="drop-zone" id="dropzone-gallery" onclick="triggerFileInput('file-gallery')" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'gallery')">
           <div class="drop-zone-icon">🖼️</div>
           <div class="drop-zone-text"><strong>Adicionar fotos</strong> à galeria<br><span style="font-size:12px">Múltiplos arquivos suportados</span></div>
           <input type="file" id="file-gallery" accept="image/*" multiple onchange="handleFileInput(event,'gallery')">
         </div>
         <div id="preview-gallery" class="photo-preview-grid"></div>
+      </div>
+
+      <div class="section-divider" style="margin-top:24px">📋 Fotos de Referência <span style="font-size:10px;font-weight:400;color:var(--silver)">(etiqueta, código de barras — nunca cortadas)</span></div>
+      <div class="field-group">
+        <div class="drop-zone" id="dropzone-refs" onclick="triggerFileInput('file-refs')" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event,'refs')">
+          <div class="drop-zone-icon">🏷️</div>
+          <div class="drop-zone-text"><strong>Adicionar fotos de referência</strong><br><span style="font-size:12px">Etiquetas, códigos, fichas técnicas — exibidas completas sem corte</span></div>
+          <input type="file" id="file-refs" accept="image/*" multiple onchange="handleFileInput(event,'refs')">
+        </div>
+        <div id="preview-refs" class="ref-grid"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1770,9 +1846,10 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         <div class="field-group">
           <label class="field-label">Canal</label>
           <select class="field-input" id="v-canal">
-            <option value="Presencial">Presencial</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="Instagram">Instagram</option>
+            <option value="presencial">Presencial</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+            <option value="outro">Outro</option>
           </select>
         </div>
         <div class="field-group">
@@ -1842,25 +1919,6 @@ textarea.field-input { resize: vertical; min-height: 80px; }
 </div>
 
 <!-- MODAL: QR CODE -->
-<div class="modal-overlay" id="modal-qr">
-  <div class="modal modal-sm">
-    <div class="modal-header">
-      <span class="modal-title" id="modal-qr-title">QR Code da Peça</span>
-      <button class="modal-close" onclick="closeModal('modal-qr')">✕</button>
-    </div>
-    <div class="modal-body" style="text-align:center">
-      <div class="qr-display">
-        <div id="qr-code-container"></div>
-        <p style="margin-top:12px;font-weight:600;font-size:16px" id="qr-ref-label"></p>
-        <p style="font-size:13px;color:var(--silver)" id="qr-name-label"></p>
-      </div>
-      <p style="font-size:12px;color:var(--silver);margin-top:16px">
-        Imprima e cole na embalagem ou na etiqueta da peça
-      </p>
-      <button class="btn btn-outline" style="margin-top:12px;width:100%" onclick="printQR()">🖨️ Imprimir QR Code</button>
-    </div>
-  </div>
-</div>
 
 <!-- MODAL: VISUALIZAR PRODUTO -->
 <div class="modal-overlay" id="modal-view-produto">
@@ -1898,6 +1956,12 @@ textarea.field-input { resize: vertical; min-height: 80px; }
   </div>
 </div>
 
+<!-- LIGHTBOX REFERÊNCIAS -->
+<div id="lightbox-overlay" onclick="closeLightbox()">
+  <button onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="Referência">
+</div>
+
 <!-- MODAL: DELETE CONFIRM -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal modal-sm">
@@ -1906,11 +1970,11 @@ textarea.field-input { resize: vertical; min-height: 80px; }
       <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
     </div>
     <div class="modal-body">
-      <p style="color:var(--charcoal-soft)">Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.</p>
+      <p style="color:var(--charcoal-soft)">O produto será marcado como <strong>inativo</strong> e não aparecerá mais nas listagens. O histórico de vendas e estoque é preservado.</p>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-confirm')">Cancelar</button>
-      <button class="btn btn-danger" id="btn-confirm-delete">Excluir</button>
+      <button class="btn btn-danger" id="btn-confirm-delete">Desativar</button>
     </div>
   </div>
 </div>
@@ -2069,7 +2133,8 @@ async function loadAll() {
       mult:  p.mult  || p.multiplicador || 2.6,
       cat:   p.cat   || p.categoria,
       foto:  p.foto  || p.foto_principal_url,
-      galeria: p.galeria || p.galeria_urls || [],
+      galeria:        Array.isArray(p.galeria)        ? p.galeria        : (p.galeria_urls || []),
+      referencias_urls: Array.isArray(p.referencias_urls) ? p.referencias_urls : [],
       desc:  p.descricao || ''
     }));
     cache.movimentacoes = movs;
@@ -2105,6 +2170,7 @@ let currentPage = 'dashboard';
 // state
 let tempMainPhoto = null;
 let tempGallery = [];
+let tempRefs = [];       // fotos de referência (object-fit:contain, nunca corta)
 let editingRef = null;
 let deleteCallback = null;
 let _cancelVendaId = null;
@@ -2437,9 +2503,9 @@ function renderDashboard() {
     valorVenda += q * p.venda;
   });
 
-  const vendasMes = vendas.filter(v => v.data.startsWith(month));
-  const totalVendasMes = vendasMes.reduce((s,v) => s+v.valor, 0);
-  const lucroMes = vendasMes.reduce((s,v) => s+v.lucro, 0);
+  const vendasMes = vendas.filter(v => v.data.startsWith(month) && v.status !== 'cancelada');
+  const totalVendasMes = vendasMes.reduce((s,v) => s+(v.valor||0), 0);
+  const lucroMes = vendasMes.reduce((s,v) => s+(v.lucro||0), 0);
 
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card"><span class="stat-icon">💍</span><div class="stat-value">${totalPecas}</div><div class="stat-label">Peças em Estoque</div></div>
@@ -2449,11 +2515,14 @@ function renderDashboard() {
     <div class="stat-card orange"><span class="stat-icon">✨</span><div class="stat-value">${fmtBRL(lucroMes)}</div><div class="stat-label">Lucro do Mês</div></div>
   `;
 
-  // Canal chart
+  // Canal chart — apenas vendas OK
   const canais = {};
-  vendas.forEach(v => { canais[v.canal] = (canais[v.canal]||0)+v.valor; });
+  vendas.filter(v=>v.status!=='cancelada').forEach(v => {
+    const c = (v.canal||'outro').toLowerCase();
+    canais[c] = (canais[c]||0)+(v.valor||0);
+  });
   const totalCanal = Object.values(canais).reduce((a,b)=>a+b,0);
-  const canalColors = {Instagram:'#C13584',WhatsApp:'#25D366',Presencial:'#C9A84C'};
+  const canalColors = {instagram:'#C13584', whatsapp:'#25D366', presencial:'#C9A84C', outro:'#8C8C8C'};
   document.getElementById('dash-canal-chart').innerHTML = Object.entries(canais).length ? `
     <div class="bar-chart">
       ${Object.entries(canais).map(([k,v])=>`
@@ -2475,18 +2544,20 @@ function renderDashboard() {
         </div>`).join('')}
     </div>` : '<div style="text-align:center;padding:20px;color:var(--success);font-size:14px">✅ Todos os produtos com estoque adequado</div>';
 
-  // Recent sales
+  // Recent sales — mostra todas mas marca canceladas
   const recent = [...vendas].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
   document.getElementById('dash-sales-table').innerHTML = recent.length ? `
     <table><thead><tr><th>Data</th><th>Produto</th><th>Canal</th><th>Valor</th><th>Lucro</th></tr></thead>
     <tbody>${recent.map(v=>{
       const p = prods.find(x=>x.ref===v.ref)||{};
-      return `<tr>
+      const isCanceled = v.status === 'cancelada';
+      const canal = (v.canal||'outro').toLowerCase();
+      return `<tr style="${isCanceled?'opacity:0.5;text-decoration:line-through':''}">
         <td>${fmtDate(v.data)}</td>
         <td><div class="product-cell"><div class="product-thumb">${getCatEmoji(p.cat)}</div><div><div class="product-name">${p.nome||v.ref}</div><div class="product-ref">${v.ref}</div></div></div></td>
-        <td><span class="badge badge-${v.canal.toLowerCase()}">${v.canal}</span></td>
-        <td style="font-weight:600">${fmtBRL(v.valor)}</td>
-        <td style="color:var(--success);font-weight:600">${fmtBRL(v.lucro)}</td>
+        <td><span class="badge badge-${canal}">${v.canal||'—'}</span></td>
+        <td style="font-weight:600">${fmtBRL(v.valor||0)}</td>
+        <td style="color:${isCanceled?'var(--silver)':'var(--success)'};font-weight:600">${fmtBRL(v.lucro||0)}</td>
       </tr>`;
     }).join('')}</tbody></table>` : '<div class="empty-state"><div class="emoji">💰</div><p>Sem vendas recentes</p></div>';
 }
@@ -2513,7 +2584,9 @@ function renderProdutos() {
   const prods = cache.produtos;
   const stocks = getAllStocks();
   const search = document.getElementById('search-produtos')?.value.toLowerCase()||'';
+  const showInactive = document.getElementById('toggle-inativos')?.checked || false;
   const filtered = prods.filter(p =>
+    (showInactive || p.status !== 'inativo') &&
     (!activeCategFilter || p.cat===activeCategFilter) &&
     (!search || p.ref.toLowerCase().includes(search) || p.nome.toLowerCase().includes(search))
   );
@@ -2556,7 +2629,7 @@ function renderProdutos() {
       <td><span class="badge badge-${p.status}">${p.status}</span></td>
       <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:5px">
-          <button class="qr-mini-btn" onclick="showQR('${p.ref}')" title="QR">◼</button>
+          <button class="btn btn-outline btn-sm" onclick="viewProduto('${p.ref}')" title="Ver detalhes">👁</button>
           ${isAdmin?`
           <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.ref}')">✏️</button>
           <button class="btn btn-outline btn-sm" onclick="openVendaModal('${p.ref}')">💰</button>
@@ -2599,20 +2672,21 @@ function viewProduto(ref) {
   const qty = stocks[ref]||0;
   const isAdmin = currentUser.role==='admin';
   const margin = p.custo>0?((p.venda-p.custo)/p.custo*100).toFixed(0)+'%':'—';
-  const allImgs = [p.foto, ...(p.galeria||[])].filter(Boolean);
+  const prodImgs = [p.foto, ...(p.galeria||[])].filter(Boolean);
+  const refs     = (p.referencias_urls||[]).filter(Boolean);
 
   document.getElementById('view-produto-title').textContent = p.nome;
 
   document.getElementById('view-produto-body').innerHTML = `
     <div>
-      ${allImgs.length ? `
+      ${prodImgs.length ? `
         <div class="gallery-main-img" id="gallery-main-wrap">
-          <img id="gallery-main" src="${allImgs[0]}" style="width:100%;height:100%;object-fit:cover">
+          <img id="gallery-main" src="${prodImgs[0]}" style="width:100%;height:100%;object-fit:cover">
         </div>
-        ${allImgs.length>1?`<div class="gallery-thumbs">
-          ${allImgs.map((img,i)=>`<img src="${img}" class="gallery-thumb${i===0?' active':''}" onclick="setGalleryMain('${img}',this)">`).join('')}
+        ${prodImgs.length>1?`<div class="gallery-thumbs">
+          ${prodImgs.map((img,i)=>`<img src="${img}" class="gallery-thumb${i===0?' active':''}" onclick="setGalleryMain('${img}',this)">`).join('')}
         </div>`:''}
-      ` : `<div class="gallery-main-img" style="background:var(--cream-dark)">${getCatEmoji(p.cat)}</div>`}
+      ` : `<div class="gallery-main-img" style="background:var(--cream-dark);display:flex;align-items:center;justify-content:center;font-size:48px">${getCatEmoji(p.cat)}</div>`}
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
         <div style="background:var(--cream);border-radius:10px;padding:14px">
@@ -2653,11 +2727,24 @@ function viewProduto(ref) {
         <div style="font-size:11px;color:var(--silver);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Descrição</div>
         <p style="font-size:14px;color:var(--charcoal-soft);line-height:1.6">${p.descricao}</p>
       </div>`:''}
+
+      ${refs.length ? `
+        <div style="margin-top:20px">
+          <div style="font-size:11px;font-weight:700;color:var(--silver);text-transform:uppercase;letter-spacing:1.5px;padding-bottom:8px;border-bottom:1px solid var(--cream-dark);margin-bottom:12px">
+            🏷️ Referências do Fornecedor
+          </div>
+          <p style="font-size:12px;color:var(--silver);margin-bottom:10px">Clique para ampliar</p>
+          <div class="ref-grid">
+            ${refs.map(url=>`
+              <div class="ref-thumb" onclick="openLightbox('${url}')">
+                <img src="${url}" alt="Referência">
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
     </div>`;
 
   document.getElementById('view-produto-footer').innerHTML = `
     <button class="btn btn-outline" onclick="closeModal('modal-view-produto')">Fechar</button>
-    <button class="btn btn-outline" onclick="closeModal('modal-view-produto');showQR('${p.ref}')">◼ QR Code</button>
     ${isAdmin?`
     <button class="btn btn-success" onclick="closeModal('modal-view-produto');openVendaModal('${p.ref}')">💰 Registrar Venda</button>
     <button class="btn btn-gold" onclick="closeModal('modal-view-produto');openProductModal('${p.ref}')">✏️ Editar</button>
@@ -2676,8 +2763,10 @@ function openProductModal(ref=null) {
   editingRef = ref;
   tempMainPhoto = null;
   tempGallery = [];
+  tempRefs = [];
   document.getElementById('preview-main').innerHTML = '';
   document.getElementById('preview-gallery').innerHTML = '';
+  document.getElementById('preview-refs').innerHTML = '';
 
   const cfg = cache.config;
   const defaultMult = cfg.mult || 2.6;
@@ -2698,6 +2787,7 @@ function openProductModal(ref=null) {
     document.getElementById('p-status').value = p.status;
     if(p.foto) { tempMainPhoto=p.foto; renderPhotoPreview(); }
     if(p.galeria && p.galeria.length) { tempGallery=[...p.galeria]; renderGalleryPreview(); }
+    if(p.referencias_urls && p.referencias_urls.length) { tempRefs=[...p.referencias_urls]; renderRefsPreview(); }
   } else {
     document.getElementById('modal-produto-title').textContent = 'Novo Produto';
     ['p-ref','p-nome','p-peso','p-desc','p-custo','p-venda'].forEach(id=>{
@@ -2755,8 +2845,9 @@ async function saveProduto() {
     custo, mult, sugerido,
     venda: vendaVal,
     status: document.getElementById('p-status').value,
-    foto: tempMainPhoto || null,
-    galeria: [...tempGallery]
+    foto:             tempMainPhoto  || null,
+    galeria:          [...tempGallery],
+    referencias_urls: [...tempRefs]
   };
 
   try {
@@ -2773,15 +2864,16 @@ async function saveProduto() {
 }
 
 function deleteProduto(ref) {
+  const p = cache.produtos.find(x=>x.ref===ref);
+  if(!p) return;
   confirmDelete(async () => {
     try {
       showLoading(true);
-      await supa.delete('movimentacoes', {ref});
-      await supa.delete('vendas', {ref});
-      await supa.delete('produtos', {ref});
+      // Soft delete: marca como inativo (DELETE físico bloqueado por RLS)
+      await supa.update('produtos', {ref}, {status: 'inativo'});
       await loadAll();
       refreshAllPages();
-      toast('Produto removido', 'warning');
+      toast(`Produto "${p.nome}" desativado`, 'warning');
     } catch(e) { toast('Erro: '+e.message,'error'); }
     showLoading(false);
   });
@@ -2792,38 +2884,116 @@ function deleteProduto(ref) {
 // ═══════════════════════════════════════════════════════
 function triggerFileInput(id) { document.getElementById(id).click(); }
 
-function handleFileInput(event, type) {
-  const files = event.target.files;
-  if(!files.length) return;
-  if(type==='main') {
-    readFileAsDataURL(files[0], url => { tempMainPhoto=url; renderPhotoPreview(); });
-  } else {
-    Array.from(files).forEach(f => {
-      readFileAsDataURL(f, url => { tempGallery.push(url); renderGalleryPreview(); });
-    });
-  }
-  event.target.value='';
+// ── UPLOAD HELPER ────────────────────────────────────────
+async function uploadToStorage(file, bucket) {
+  const ext  = file.name.split('.').pop() || 'jpg';
+  const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const url  = await supa.uploadFile(bucket, path, file);
+  return url;
 }
 
-function handleDrop(event, type) {
+function compressImage(file, maxW=1200) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.width  * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        URL.revokeObjectURL(url);
+        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.85);
+    };
+    img.src = url;
+  });
+}
+
+async function handleFileInput(event, type) {
+  const files = Array.from(event.target.files);
+  if(!files.length) return;
+  const bucket = 'prata-produtos';
+
+  showLoading(true);
+  try {
+    if(type === 'main') {
+      const compressed = await compressImage(files[0]);
+      const url = await uploadToStorage(compressed, bucket);
+      tempMainPhoto = url;
+      renderPhotoPreview();
+    } else if(type === 'gallery') {
+      for(const f of files) {
+        const compressed = await compressImage(f);
+        const url = await uploadToStorage(compressed, bucket);
+        tempGallery.push(url);
+      }
+      renderGalleryPreview();
+    } else if(type === 'refs') {
+      // Referências: NÃO comprimir (preservar legibilidade de texto/código)
+      for(const f of files) {
+        const url = await uploadToStorage(f, bucket);
+        tempRefs.push(url);
+      }
+      renderRefsPreview();
+    }
+  } catch(e) {
+    toast('Erro no upload: ' + e.message, 'error');
+  }
+  showLoading(false);
+  event.target.value = '';
+}
+
+async function handleDrop(event, type) {
   event.preventDefault();
-  document.getElementById('dropzone-'+(type==='main'?'main':'gallery')).classList.remove('dragover');
-  const files = event.dataTransfer.files;
+  const zone = {main:'dropzone-main', gallery:'dropzone-gallery', refs:'dropzone-refs'}[type];
+  if(zone) document.getElementById(zone)?.classList.remove('dragover');
+  const files = Array.from(event.dataTransfer.files).filter(f=>f.type.startsWith('image/'));
   if(!files.length) return;
-  if(type==='main') {
-    readFileAsDataURL(files[0], url => { tempMainPhoto=url; renderPhotoPreview(); });
-  } else {
-    Array.from(files).forEach(f => {
-      if(f.type.startsWith('image/')) readFileAsDataURL(f, url => { tempGallery.push(url); renderGalleryPreview(); });
-    });
+  const bucket = 'prata-produtos';
+
+  showLoading(true);
+  try {
+    if(type === 'main') {
+      const compressed = await compressImage(files[0]);
+      const url = await uploadToStorage(compressed, bucket);
+      tempMainPhoto = url;
+      renderPhotoPreview();
+    } else if(type === 'gallery') {
+      for(const f of files) {
+        const url = await uploadToStorage(await compressImage(f), bucket);
+        tempGallery.push(url);
+      }
+      renderGalleryPreview();
+    } else if(type === 'refs') {
+      for(const f of files) {
+        const url = await uploadToStorage(f, bucket);
+        tempRefs.push(url);
+      }
+      renderRefsPreview();
+    }
+  } catch(e) {
+    toast('Erro no upload: ' + e.message, 'error');
   }
+  showLoading(false);
 }
 
-function readFileAsDataURL(file, cb) {
-  const reader = new FileReader();
-  reader.onload = e => cb(e.target.result);
-  reader.readAsDataURL(file);
+// Lightbox para fotos de referência (nunca corta)
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
+
+function closeLightbox() {
+  document.getElementById('lightbox-overlay').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+  document.body.style.overflow = '';
+}
+
+// Fechar lightbox com ESC
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
 
 function renderPhotoPreview() {
   const el = document.getElementById('preview-main');
@@ -2838,49 +3008,32 @@ function renderGalleryPreview() {
   const el = document.getElementById('preview-gallery');
   el.innerHTML = tempGallery.map((url,i)=>`
     <div class="photo-preview-item">
-      <img src="${url}">
+      <img src="${url}" style="object-fit:cover">
       <button class="remove-btn" onclick="tempGallery.splice(${i},1);renderGalleryPreview()">✕</button>
+    </div>`).join('');
+}
+
+function renderRefsPreview() {
+  const el = document.getElementById('preview-refs');
+  el.innerHTML = tempRefs.map((url,i)=>`
+    <div class="ref-thumb">
+      <img src="${url}" alt="Referência ${i+1}">
+      <button class="remove-btn" onclick="tempRefs.splice(${i},1);renderRefsPreview()">✕</button>
     </div>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════
 // QR CODE
 // ═══════════════════════════════════════════════════════
-function showQR(ref) {
-  const p = cache.produtos.find(x=>x.ref===ref);
-  if(!p) return;
-  document.getElementById('modal-qr-title').textContent = `QR Code — ${ref}`;
-  document.getElementById('qr-ref-label').textContent = ref;
-  document.getElementById('qr-name-label').textContent = p.nome;
-  const container = document.getElementById('qr-code-container');
-  container.innerHTML = '';
-  new QRCode(container, { text: ref, width: 180, height: 180, colorDark:'#1A1A1A', colorLight:'#FFFFFF', correctLevel: QRCode.CorrectLevel.H });
-  openModal('modal-qr');
-}
-
-function printQR() {
-  const canvas = document.querySelector('#qr-code-container canvas');
-  if(!canvas) return;
-  const win = window.open('','_blank');
-  const ref = document.getElementById('qr-ref-label').textContent;
-  const nome = document.getElementById('qr-name-label').textContent;
-  win.document.write(`<html><head><title>QR - ${ref}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;} p{margin:4px;text-align:center}</style></head><body>
-    <img src="${canvas.toDataURL()}" style="width:180px;height:180px">
-    <p style="font-size:20px;font-weight:bold;margin-top:8px">${ref}</p>
-    <p style="font-size:14px;color:#666">${nome}</p>
-    <p style="font-size:12px;color:#aaa">Prata 925</p>
-    <script>window.onload=()=>window.print()<\/script>
-  </body></html>`);
-  win.document.close();
-}
+// QR Code removido — não utilizado
 
 // ═══════════════════════════════════════════════════════
 // ESTOQUE
 // ═══════════════════════════════════════════════════════
 function renderEstoque() {
-  const prods = cache.produtos;
+  const prods  = cache.produtos.filter(p => p.status !== 'inativo');
   const stocks = getAllStocks();
-  const tbody = document.getElementById('tbody-estoque');
+  const tbody  = document.getElementById('tbody-estoque');
   tbody.innerHTML = prods.map(p=>{
     const q = stocks[p.ref]||0;
     return `<tr class="${q<=2?'low-stock-row':''}">
@@ -3004,8 +3157,15 @@ function updateVendaProduct() {
   const p = cache.produtos.find(x=>x.ref===ref);
   const infoEl = document.getElementById('v-product-info');
   if(p) {
+    if(p.status === 'inativo') {
+      infoEl.style.display='block';
+      infoEl.style.background='rgba(192,57,43,0.08)';
+      infoEl.innerHTML = `<span style="color:var(--danger)">⚠️ Produto <strong>${p.nome}</strong> está inativo — não é possível registrar venda.</span>`;
+      return;
+    }
+    infoEl.style.background='';
+    infoEl.innerHTML = `<strong id="v-product-name">${p.nome}</strong> · Estoque: <span id="v-product-stock"></span> · Preço: <span id="v-product-price"></span>`;
     const qty = getStockByRef(ref);
-    document.getElementById('v-product-name').textContent = p.nome;
     document.getElementById('v-product-stock').textContent = qty+' un';
     document.getElementById('v-product-price').textContent = fmtBRL(p.venda);
     infoEl.style.display='block';
@@ -3013,6 +3173,7 @@ function updateVendaProduct() {
     calcVendaLucro();
   } else {
     infoEl.style.display='none';
+    infoEl.innerHTML = `<strong id="v-product-name"></strong> · Estoque: <span id="v-product-stock"></span> · Preço: <span id="v-product-price"></span>`;
   }
 }
 
@@ -3044,6 +3205,7 @@ async function saveVenda() {
 
   const p = cache.produtos.find(x=>x.ref===ref);
   if(!p) { toast('Produto não encontrado: '+ref, 'error'); return; }
+  if(p.status === 'inativo') { toast('Produto inativo — não é possível registrar venda', 'error'); return; }
 
   // Checagem de estoque local (pré-validação — servidor confirma com lock)
   const stock = getStockByRef(ref);
@@ -3139,7 +3301,7 @@ function renderMovimentacoes() {
 
   tbody.innerHTML = filtered.map((m,i)=>{
     const p = prods.find(x=>x.ref===m.ref)||{};
-    const isPositive = m.tipo==='entrada'||m.tipo==='devolucao';
+    const isPositive = m.tipo==='entrada' || m.tipo==='devolucao' || m.tipo==='estorno';
     return `<tr>
       <td style="font-family:monospace;font-size:12px;color:var(--silver)">#${String(i+1).padStart(4,'0')}</td>
       <td>${fmtDate(m.data)}</td>
@@ -3172,14 +3334,22 @@ function openMovModalRef(ref, tipo) {
 }
 
 async function saveMov() {
-  const ref = document.getElementById('m-ref').value.trim().toUpperCase();
+  const ref  = document.getElementById('m-ref').value.trim().toUpperCase();
   const tipo = document.getElementById('m-tipo').value;
-  const qtd = parseInt(document.getElementById('m-qtd').value)||0;
+  const qtd  = parseInt(document.getElementById('m-qtd').value)||0;
   const data = document.getElementById('m-data').value;
   if(!ref || !qtd || !data) { toast('Preencha todos os campos', 'error'); return; }
   if(!cache.produtos.find(p=>p.ref===ref)) { toast('Produto não encontrado: '+ref, 'error'); return; }
 
-  const mov = { id:genId(), data, ref, tipo, qtd, obs:document.getElementById('m-obs').value.trim() };
+  // Calcular sinal correto conforme tipo
+  const sinal = (tipo==='venda' || tipo==='troca') ? -1 : 1;
+
+  const mov = {
+    id:     genId(),
+    data,   ref,   tipo,   sinal,  qtd,
+    obs:    document.getElementById('m-obs').value.trim() || null,
+    origem: 'manual'
+  };
   try {
     showLoading(true);
     await supa.upsert('movimentacoes', mov);
@@ -3256,7 +3426,7 @@ function renderRelatorios() {
 function renderDistribuidor() {
   const iniMes = document.getElementById('dist-inicio')?.value||'';
   const fimMes = document.getElementById('dist-fim')?.value||'';
-  const prods  = cache.produtos;
+  const prods  = cache.produtos.filter(p => p.status !== 'inativo');
   const movs   = cache.movimentacoes;
   const vendas = cache.vendas;
 
@@ -3379,41 +3549,39 @@ function applySidebarLoja() {
   }
 }
 
-function handleConfigLogoInput(event) {
+async function handleConfigLogoInput(event) {
   const file = event.target.files[0];
   if(!file) return;
-  readFileAsDataURL(file, async url => {
-    try {
-      showLoading(true);
-      await supa.update('config', {id:1}, {logo_url: url, logo_loja: url});
-      cache.config.logo_url  = url;
-      cache.config.logo_loja = url;
-      document.getElementById('config-logo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
-      applySidebarLoja();
-      toast('Logo atualizada!');
-    } catch(e) { toast('Erro: '+e.message,'error'); }
-    showLoading(false);
-  });
+  try {
+    showLoading(true);
+    const url = await supa.uploadFile('prata-brand', `logo_${Date.now()}.${file.name.split('.').pop()||'png'}`, file);
+    await supa.update('config', {id:1}, {logo_url: url, logo_loja: url});
+    cache.config.logo_url  = url;
+    cache.config.logo_loja = url;
+    document.getElementById('config-logo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+    applySidebarLoja();
+    toast('Logo atualizada!');
+  } catch(e) { toast('Erro: '+e.message,'error'); }
+  showLoading(false);
   event.target.value='';
 }
 
-function handleConfigLogoDrop(event) {
+async function handleConfigLogoDrop(event) {
   event.preventDefault();
   event.currentTarget.classList.remove('dragover');
   const file = event.dataTransfer.files[0];
   if(!file || !file.type.startsWith('image/')) return;
-  readFileAsDataURL(file, async url => {
-    try {
-      showLoading(true);
-      await supa.update('config', {id:1}, {logo_url: url, logo_loja: url});
-      cache.config.logo_url  = url;
-      cache.config.logo_loja = url;
-      document.getElementById('config-logo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
-      applySidebarLoja();
-      toast('Logo atualizada!');
-    } catch(e) { toast('Erro: '+e.message,'error'); }
-    showLoading(false);
-  });
+  try {
+    showLoading(true);
+    const url = await supa.uploadFile('prata-brand', `logo_${Date.now()}.${file.name.split('.').pop()||'png'}`, file);
+    await supa.update('config', {id:1}, {logo_url: url, logo_loja: url});
+    cache.config.logo_url  = url;
+    cache.config.logo_loja = url;
+    document.getElementById('config-logo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+    applySidebarLoja();
+    toast('Logo atualizada!');
+  } catch(e) { toast('Erro: '+e.message,'error'); }
+  showLoading(false);
 }
 
 async function removeConfigLogo() {
