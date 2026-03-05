@@ -1266,6 +1266,7 @@ textarea.field-input { resize: vertical; min-height: 80px; }
   color: var(--charcoal);
 }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -1615,6 +1616,7 @@ textarea.field-input { resize: vertical; min-height: 80px; }
               <tr>
                 <th>Referência</th>
                 <th>Produto</th>
+                <th style="text-align:center">Fotos</th>
                 <th>Qtd. Enviada</th>
                 <th>Qtd. Vendida</th>
                 <th>Em Estoque</th>
@@ -1703,7 +1705,7 @@ textarea.field-input { resize: vertical; min-height: 80px; }
               Baixe uma planilha completa do banco com todas as tabelas. Útil como backup ou para análise externa.
             </p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <button class="btn btn-outline" onclick="exportarTabela('produtos')">💍 Exportar Produtos</button>
+              <button class="btn btn-outline" onclick="exportarProdutosZip()">💍 Exportar Produtos + Fotos (ZIP)</button>
               <button class="btn btn-outline" onclick="exportarTabela('vendas')">💰 Exportar Vendas</button>
               <button class="btn btn-outline" onclick="exportarTabela('movimentacoes')">↔️ Exportar Movimentações</button>
               <button class="btn btn-gold"    onclick="exportarTudo()">📦 Exportar Tudo (ZIP)</button>
@@ -2024,6 +2026,44 @@ textarea.field-input { resize: vertical; min-height: 80px; }
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-cancelar-venda')">Voltar</button>
       <button class="btn btn-danger" onclick="confirmarCancelamento()">⚠️ Confirmar Cancelamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FOTOS DISTRIBUIDOR -->
+<div class="modal-overlay" id="modal-dist-fotos">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="dist-foto-title">Fotos do Produto</span>
+      <button class="modal-close" onclick="closeModal('modal-dist-fotos')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+
+      <!-- Badge tipo + contador -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span id="dist-foto-badge" style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px"></span>
+        <span id="dist-foto-counter" style="font-size:12px;color:var(--silver)"></span>
+      </div>
+
+      <!-- Imagem principal -->
+      <div style="position:relative;background:var(--cream-dark);border-radius:14px;overflow:hidden;margin-bottom:12px;display:flex;align-items:center;justify-content:center;min-height:280px;max-height:420px">
+        <img id="dist-foto-main" src="" style="max-width:100%;max-height:420px;object-fit:contain;display:block">
+        <!-- Nav arrows -->
+        <button id="dist-foto-prev" onclick="distFotoPrev()"
+          style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)">‹</button>
+        <button id="dist-foto-next" onclick="distFotoNext()"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)">›</button>
+      </div>
+
+      <!-- Label seção -->
+      <div id="dist-foto-section" style="font-size:11px;font-weight:700;color:var(--silver);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px"></div>
+
+      <!-- Thumbnails -->
+      <div id="dist-foto-thumbs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-dist-fotos')">Fechar</button>
+      <button class="btn btn-gold" onclick="distFotoGoTo(0);document.getElementById('dist-foto-main').requestFullscreen?.()">🔍 Tela cheia</button>
     </div>
   </div>
 </div>
@@ -3623,6 +3663,58 @@ function renderRelatorios() {
 // ═══════════════════════════════════════════════════════
 // DISTRIBUIDOR
 // ═══════════════════════════════════════════════════════
+// ── Visualizar fotos do produto (distribuidor) ────────────────
+function viewDistFotos(ref) {
+  const p = cache.produtos.find(x => x.ref === ref);
+  if(!p) return;
+
+  const fotos    = [p.foto,  ...(p.galeria||[])].filter(Boolean);
+  const refs_    = (p.referencias_urls||[]).filter(Boolean);
+  const allImgs  = [...fotos, ...refs_];
+  if(!allImgs.length) { toast('Este produto não tem fotos cadastradas', 'info'); return; }
+
+  let activeIdx = 0;
+
+  function buildModal() {
+    const cur = allImgs[activeIdx];
+    const isRef = activeIdx >= fotos.length;
+    document.getElementById('dist-foto-title').textContent = `${p.nome} — ${p.ref}`;
+    document.getElementById('dist-foto-badge').textContent = isRef ? '🏷️ Referência do Fornecedor' : `📸 Foto ${activeIdx + 1} de ${fotos.length}`;
+    document.getElementById('dist-foto-badge').style.background = isRef ? 'rgba(201,168,76,0.15)' : 'rgba(52,168,83,0.12)';
+    document.getElementById('dist-foto-badge').style.color = isRef ? 'var(--gold-dark)' : 'var(--success)';
+    document.getElementById('dist-foto-main').src = cur;
+    document.getElementById('dist-foto-counter').textContent = `${activeIdx+1} / ${allImgs.length}`;
+    document.getElementById('dist-foto-prev').disabled = activeIdx === 0;
+    document.getElementById('dist-foto-next').disabled = activeIdx === allImgs.length - 1;
+
+    // Thumbnails
+    document.getElementById('dist-foto-thumbs').innerHTML = allImgs.map((url, i) => `
+      <div onclick="distFotoGoTo(${i})"
+        style="cursor:pointer;width:52px;height:52px;border-radius:8px;overflow:hidden;flex-shrink:0;
+               border:2px solid ${i===activeIdx?'var(--gold-dark)':'rgba(0,0,0,0.1)'};
+               opacity:${i===activeIdx?'1':'0.6'};transition:all .15s">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+      </div>`).join('');
+
+    // Seção separando fotos × refs
+    if(fotos.length && refs_.length) {
+      document.getElementById('dist-foto-section').style.display = '';
+      document.getElementById('dist-foto-section').textContent =
+        isRef ? `🏷️ Referências do fornecedor (${activeIdx - fotos.length + 1} de ${refs_.length})`
+               : `📸 Fotos do produto (${activeIdx + 1} de ${fotos.length})`;
+    } else {
+      document.getElementById('dist-foto-section').style.display = 'none';
+    }
+  }
+
+  window.distFotoGoTo = (i) => { activeIdx = i; buildModal(); };
+  window.distFotoPrev = () => { if(activeIdx > 0) { activeIdx--; buildModal(); } };
+  window.distFotoNext = () => { if(activeIdx < allImgs.length-1) { activeIdx++; buildModal(); } };
+
+  buildModal();
+  openModal('modal-dist-fotos');
+}
+
 function renderDistribuidor() {
   const iniMes = document.getElementById('dist-inicio')?.value||'';
   const fimMes = document.getElementById('dist-fim')?.value||'';
@@ -3673,6 +3765,18 @@ function renderDistribuidor() {
     return `<tr>
       <td style="font-family:monospace;font-weight:600;color:var(--gold-dark)">${p.ref}</td>
       <td>${p.nome}</td>
+      <td style="text-align:center">
+        ${(() => {
+          const allImgs = [p.foto, ...(p.galeria||[]), ...(p.referencias_urls||[])].filter(Boolean);
+          if(!allImgs.length) return '<span style="color:var(--silver);font-size:12px">—</span>';
+          return `<div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:wrap">
+            <div onclick="viewDistFotos('${p.ref}')" style="cursor:pointer;width:44px;height:44px;border-radius:8px;overflow:hidden;border:2px solid var(--gold-light);flex-shrink:0">
+              <img src="${allImgs[0]}" style="width:100%;height:100%;object-fit:cover">
+            </div>
+            ${allImgs.length > 1 ? `<span onclick="viewDistFotos('${p.ref}')" style="cursor:pointer;font-size:11px;color:var(--gold-dark);font-weight:600">+${allImgs.length-1}</span>` : ''}
+          </div>`;
+        })()}
+      </td>
       <td style="text-align:center">${entradas}</td>
       <td style="text-align:center;font-weight:600;color:var(--success)">${qtdVendida||'—'}</td>
       <td style="text-align:center"><span class="stock-pill ${estoque===0?'zero':estoque<=2?'low':'ok'}">${estoque}</span></td>
@@ -3730,17 +3834,28 @@ function atualizarDbStats() {
   el('db-count-movs',     cache.movimentacoes.length);
 }
 
+// ── Helpers CSV ───────────────────────────────────────────────
+function _buildCsv(dados) {
+  const headers = Object.keys(dados[0]);
+  const esc = v => {
+    const s = String(v == null ? '' : v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return '\uFEFF' + [headers.join(','), ...dados.map(r => headers.map(h => esc(r[h])).join(','))].join('\n');
+}
+
+function _downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Exportar tabela individual como CSV ──────────────────────
 function exportarTabela(tabela) {
   let dados, nome;
-  if(tabela==='produtos') {
-    dados = cache.produtos.map(p=>({
-      ref: p.ref, nome: p.nome, cat: p.cat, custo: p.custo, venda: p.venda,
-      mult: p.mult, peso: p.peso||'', descricao: p.descricao||'',
-      status: p.status, foto: p.foto||''
-    }));
-    nome = 'prata925_produtos';
-  } else if(tabela==='vendas') {
+  if(tabela === 'vendas') {
     dados = cache.vendas.map(v=>({
       id: v.id, data: v.data, ref: v.ref, qtd: v.qtd,
       cliente: v.cliente||'', canal: v.canal,
@@ -3751,42 +3866,130 @@ function exportarTabela(tabela) {
       obs: v.obs||''
     }));
     nome = 'prata925_vendas';
-  } else if(tabela==='movimentacoes') {
+  } else if(tabela === 'movimentacoes') {
     dados = cache.movimentacoes.map(m=>({
       id: m.id, data: m.data, ref: m.ref,
       tipo: m.tipo, sinal: m.sinal, qtd: m.qtd,
       obs: m.obs||'', origem: m.origem||''
     }));
     nome = 'prata925_movimentacoes';
+  } else if(tabela === 'produtos') {
+    // Produtos sem fotos — só CSV básico
+    dados = cache.produtos.map(p=>({
+      ref: p.ref, nome: p.nome, cat: p.cat, custo: p.custo, venda: p.venda,
+      mult: p.mult, peso: p.peso||'', descricao: p.descricao||'',
+      status: p.status, foto: p.foto||'',
+      galeria: (p.galeria||[]).join('|'),
+      referencias_urls: (p.referencias_urls||[]).join('|')
+    }));
+    nome = 'prata925_produtos';
   } else return;
 
   if(!dados.length) { toast('Nenhum dado para exportar', 'warning'); return; }
-
-  const headers = Object.keys(dados[0]);
-  const esc = v => {
-    const s = String(v==null?'':v);
-    return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? '"' + s.replace(/"/g,'""') + '"' : s;
-  };
-  const csv = [headers.join(','), ...dados.map(r=>headers.map(h=>esc(r[h])).join(','))].join('\n');
-  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `${nome}_${today()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  _downloadBlob(new Blob([_buildCsv(dados)], {type:'text/csv;charset=utf-8'}), `${nome}_${today()}.csv`);
   toast(`✅ ${dados.length} registros exportados`);
 }
 
-// ── Exportar tudo (3 arquivos CSV em sequência) ──────────────
-function exportarTudo() {
+// ── Exportar Produtos + Fotos como ZIP ───────────────────────
+async function exportarProdutosZip() {
+  const prods = cache.produtos;
+  if(!prods.length) { toast('Nenhum produto para exportar', 'warning'); return; }
+  if(typeof JSZip === 'undefined') { toast('JSZip não carregou — verifique conexão', 'error'); return; }
+
+  toast('⏳ Preparando ZIP com fotos...', 'info', 30000);
+  showLoading(true);
+
+  try {
+    const zip = new JSZip();
+    const dt  = today();
+
+    // ── 1. CSV com todos os campos ────────────────────────────
+    const csvDados = prods.map(p => ({
+      ref:              p.ref,
+      nome:             p.nome,
+      cat:              p.cat,
+      custo:            p.custo,
+      venda:            p.venda,
+      mult:             p.mult,
+      peso:             p.peso||'',
+      descricao:        p.descricao||'',
+      status:           p.status,
+      foto_principal:   p.foto    ? `fotos/${p.ref}/principal.jpg`  : '',
+      galeria:          (p.galeria||[]).map((_,i)=>`fotos/${p.ref}/galeria_${i+1}.jpg`).join('|'),
+      referencias:      (p.referencias_urls||[]).map((_,i)=>`fotos/${p.ref}/ref_${i+1}.jpg`).join('|'),
+    }));
+    zip.file(`produtos_${dt}.csv`, _buildCsv(csvDados));
+
+    // ── 2. Baixar imagens em paralelo (máx 5 por vez) ─────────
+    const tarefas = [];
+    for(const p of prods) {
+      const urls = [
+        p.foto ? {url: p.foto, path: `fotos/${p.ref}/principal.jpg`} : null,
+        ...(p.galeria||[]).map((u,i) => u ? {url:u, path:`fotos/${p.ref}/galeria_${i+1}.jpg`} : null),
+        ...(p.referencias_urls||[]).map((u,i) => u ? {url:u, path:`fotos/${p.ref}/ref_${i+1}.jpg`} : null),
+      ].filter(Boolean);
+      tarefas.push(...urls);
+    }
+
+    // Baixar em lotes de 6 simultâneos
+    let baixados = 0, erros = 0;
+    const LOTE = 6;
+    for(let i = 0; i < tarefas.length; i += LOTE) {
+      const lote = tarefas.slice(i, i + LOTE);
+      await Promise.all(lote.map(async ({url, path}) => {
+        try {
+          const r = await fetch(url);
+          if(!r.ok) throw new Error(r.status);
+          const buf = await r.arrayBuffer();
+          // Detectar extensão real pelo Content-Type
+          const ct  = r.headers.get('content-type')||'';
+          const ext = ct.includes('png')?'png': ct.includes('webp')?'webp': ct.includes('gif')?'gif':'jpg';
+          const finalPath = path.replace(/\.jpg$/, '.'+ext);
+          zip.file(finalPath, buf);
+          baixados++;
+        } catch(e) {
+          erros++;
+          console.warn('Falha ao baixar imagem:', url, e.message);
+        }
+      }));
+    }
+
+    // ── 3. README ─────────────────────────────────────────────
+    zip.file('LEIA-ME.txt',
+      `Exportação Prata 925 — ${dt}\n\n` +
+      `Produtos: ${prods.length}\n` +
+      `Fotos baixadas: ${baixados}${erros ? ` (${erros} falharam — URLs podem ter expirado)` : ''}\n\n` +
+      `Estrutura:\n` +
+      `  produtos_${dt}.csv  →  dados completos\n` +
+      `  fotos/<REF>/principal.jpg  →  foto principal\n` +
+      `  fotos/<REF>/galeria_N.jpg  →  fotos adicionais\n` +
+      `  fotos/<REF>/ref_N.jpg      →  referências do fornecedor\n`
+    );
+
+    // ── 4. Gerar e baixar ZIP ─────────────────────────────────
+    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:6}});
+    _downloadBlob(blob, `prata925_produtos_fotos_${dt}.zip`);
+
+    const msg = erros
+      ? `📦 ZIP gerado! ${baixados} fotos incluídas, ${erros} não encontradas.`
+      : `📦 ZIP gerado com ${prods.length} produtos e ${baixados} fotos!`;
+    toast(msg, 'success', 6000);
+
+  } catch(e) {
+    toast('Erro ao gerar ZIP: ' + e.message, 'error', 7000);
+    console.error(e);
+  }
+
+  showLoading(false);
+}
+
+// ── Exportar tudo (CSV vendas + movs + produtos com fotos) ───
+async function exportarTudo() {
   const total = cache.produtos.length + cache.vendas.length + cache.movimentacoes.length;
   if(!total) { toast('Banco vazio — nada para exportar', 'warning'); return; }
-  exportarTabela('produtos');
-  setTimeout(() => exportarTabela('vendas'),         400);
-  setTimeout(() => exportarTabela('movimentacoes'),  800);
-  setTimeout(() => toast(`📦 3 arquivos CSV baixados!`), 1200);
+  exportarTabela('vendas');
+  setTimeout(() => exportarTabela('movimentacoes'), 400);
+  setTimeout(() => exportarProdutosZip(), 900);
 }
 
 // ── Modal de reset ────────────────────────────────────────────
