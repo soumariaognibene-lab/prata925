@@ -1595,16 +1595,43 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <h2>Painel do Distribuidor</h2>
           <p>Resumo de envios, vendas e a receber</p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="month" class="field-input" id="dist-inicio" style="width:160px">
-          <input type="month" class="field-input" id="dist-fim" style="width:160px">
-          <button class="btn btn-dark" onclick="renderDistribuidor()">Filtrar</button>
+      </div>
+
+      <!-- FILTRO DE DATAS -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:14px 20px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+
+            <!-- Atalhos rápidos -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="chip" id="dist-chip-hoje"    onclick="distSetPreset('hoje')">Hoje</button>
+              <button class="chip" id="dist-chip-7dias"   onclick="distSetPreset('7dias')">Últimos 7 dias</button>
+              <button class="chip" id="dist-chip-30dias"  onclick="distSetPreset('30dias')">Últimos 30 dias</button>
+              <button class="chip" id="dist-chip-mes"     onclick="distSetPreset('mes')">Este mês</button>
+              <button class="chip" id="dist-chip-ano"     onclick="distSetPreset('ano')">Este ano</button>
+              <button class="chip" id="dist-chip-custom"  onclick="distSetPreset('custom')">Personalizado</button>
+            </div>
+
+            <!-- Date pickers (visíveis apenas no modo personalizado) -->
+            <div id="dist-custom-dates" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:12px;color:var(--silver)">De</span>
+              <input type="date" class="field-input" id="dist-inicio" style="width:150px;padding:6px 10px"
+                onchange="renderDistribuidor()">
+              <span style="font-size:12px;color:var(--silver)">até</span>
+              <input type="date" class="field-input" id="dist-fim" style="width:150px;padding:6px 10px"
+                onchange="renderDistribuidor()">
+            </div>
+
+            <!-- Label período ativo -->
+            <span id="dist-periodo-label" style="margin-left:auto;font-size:12px;color:var(--silver);white-space:nowrap">Este mês</span>
+          </div>
         </div>
       </div>
+
       <div class="dist-summary">
         <h3>Valor a Receber no Período</h3>
         <div class="amount" id="dist-total-receber">R$ 0,00</div>
-        <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px" id="dist-periodo-label">Período completo</p>
+        <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px" id="dist-periodo-sub"></p>
       </div>
       <div class="card">
         <div class="card-header">
@@ -2453,7 +2480,7 @@ async function initApp() {
   const today_ = today();
   const thisMonth_ = thisMonth();
   ['v-data','m-data'].forEach(id => { const el=document.getElementById(id); if(el) el.value=today_; });
-  ['filter-mes-venda','rel-inicio','rel-fim','dist-inicio','dist-fim'].forEach(id => { const el=document.getElementById(id); if(el) el.value=thisMonth_; });
+  ['filter-mes-venda','rel-inicio','rel-fim'].forEach(id => { const el=document.getElementById(id); if(el) el.value=thisMonth_; });
 }
 
 function renderNav() {
@@ -2529,7 +2556,7 @@ async function refreshAllPages() {
   renderVendas();
   renderMovimentacoes();
   renderRelatorios();
-  renderDistribuidor();
+  distSetPreset('mes'); // ativa chip "Este mês" por padrão
 }
 
 function openSidebar() {
@@ -3715,75 +3742,113 @@ function viewDistFotos(ref) {
   openModal('modal-dist-fotos');
 }
 
+// ── Preset de datas do distribuidor ──────────────────────────
+let _distPreset = 'mes';
+
+function distSetPreset(preset) {
+  _distPreset = preset;
+  ['hoje','7dias','30dias','mes','ano','custom'].forEach(p => {
+    const el = document.getElementById('dist-chip-'+p);
+    if(el) el.classList.toggle('active', p === preset);
+  });
+  const customDiv = document.getElementById('dist-custom-dates');
+  if(customDiv) customDiv.style.display = preset === 'custom' ? 'flex' : 'none';
+  if(preset !== 'custom') renderDistribuidor();
+}
+
+function _distGetDates() {
+  const t = today();
+  const d = new Date(t + 'T00:00:00');
+
+  if(_distPreset === 'hoje') {
+    return { ini: t, fim: t, label: 'Hoje — ' + fmtDate(t) };
+  }
+  if(_distPreset === '7dias') {
+    const ini = new Date(d); ini.setDate(d.getDate() - 6);
+    const iniStr = ini.toISOString().split('T')[0];
+    return { ini: iniStr, fim: t, label: 'Últimos 7 dias' };
+  }
+  if(_distPreset === '30dias') {
+    const ini = new Date(d); ini.setDate(d.getDate() - 29);
+    const iniStr = ini.toISOString().split('T')[0];
+    return { ini: iniStr, fim: t, label: 'Últimos 30 dias' };
+  }
+  if(_distPreset === 'mes') {
+    const ini = t.slice(0,7) + '-01';
+    const fim = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split('T')[0];
+    return { ini, fim, label: d.toLocaleString('pt-BR',{month:'long',year:'numeric'}) };
+  }
+  if(_distPreset === 'ano') {
+    const ini = d.getFullYear() + '-01-01';
+    const fim = d.getFullYear() + '-12-31';
+    return { ini, fim, label: 'Ano ' + d.getFullYear() };
+  }
+  if(_distPreset === 'custom') {
+    const ini = document.getElementById('dist-inicio')?.value || '';
+    const fim = document.getElementById('dist-fim')?.value   || '';
+    const label = ini || fim
+      ? (ini ? fmtDate(ini) : 'início') + ' a ' + (fim ? fmtDate(fim) : 'hoje')
+      : 'Personalizado';
+    return { ini, fim, label };
+  }
+  return { ini: '', fim: '', label: 'Período completo' };
+}
+
 function renderDistribuidor() {
-  const iniMes = document.getElementById('dist-inicio')?.value||'';
-  const fimMes = document.getElementById('dist-fim')?.value||'';
+  const { ini: iniDate, fim: fimDate, label } = _distGetDates();
   const prods  = cache.produtos.filter(p => p.status !== 'inativo');
   const movs   = cache.movimentacoes;
   const vendas = cache.vendas;
 
-  // Datas reais — sem concatenar '-31'
-  const iniDate = iniMes ? iniMes + '-01' : '';
-  let   fimDate = '';
-  if(fimMes) {
-    const [fa, fm] = fimMes.split('-').map(Number);
-    fimDate = new Date(fa, fm, 0).toISOString().split('T')[0];
-  }
+  const labelEl = document.getElementById('dist-periodo-label');
+  if(labelEl) labelEl.textContent = label;
 
-  // Apenas vendas OK no período
   const filteredVendas = vendas.filter(v =>
     v.status !== 'cancelada' &&
     (!iniDate || v.data >= iniDate) &&
     (!fimDate || v.data <= fimDate)
   );
 
-  // Total a receber = custo * qtd das vendas OK no período
-  const totalReceber = filteredVendas.reduce((s,v) => {
-    const custo = v.custo || v.custo_unit || 0;
-    return s + custo;
-  }, 0);
+  const filteredMovs = movs.filter(m =>
+    (!iniDate || m.data >= iniDate) &&
+    (!fimDate || m.data <= fimDate)
+  );
 
+  const totalReceber = filteredVendas.reduce((s,v) => s + (v.custo||v.custo_unit||0), 0);
   document.getElementById('dist-total-receber').textContent = fmtBRL(totalReceber);
-  document.getElementById('dist-periodo-label').textContent =
-    iniDate||fimDate ? `${iniMes||'início'} a ${fimMes||'atual'}` : 'Período completo';
+  const subEl = document.getElementById('dist-periodo-sub');
+  if(subEl) subEl.textContent = filteredVendas.length + ' venda' + (filteredVendas.length!==1?'s':'') + ' no período';
 
   const stocks = getAllStocks();
   const tbody  = document.getElementById('tbody-dist');
+  if(!tbody) return;
+
   tbody.innerHTML = prods.map(p => {
-    // Total enviado (entradas)
-    const entradas = movs
-      .filter(m => m.ref===p.ref && (m.tipo==='entrada'))
-      .reduce((s,m) => s+Number(m.qtd), 0);
-
-    // Vendas OK no período
-    const vendidasFiltradas = filteredVendas.filter(v => v.ref===p.ref);
-    const qtdVendida = vendidasFiltradas.reduce((s,v) => s+Number(v.qtd||1), 0);
-
+    const entradas   = filteredMovs.filter(m => m.ref===p.ref && m.tipo==='entrada').reduce((s,m)=>s+Number(m.qtd),0);
+    const vendasProd = filteredVendas.filter(v => v.ref===p.ref);
+    const qtdVendida = vendasProd.reduce((s,v)=>s+Number(v.qtd||1),0);
+    const aReceber   = vendasProd.reduce((s,v)=>s+(v.custo||v.custo_unit||0),0);
     const estoque    = stocks[p.ref] || 0;
-    const aReceber   = vendidasFiltradas.reduce((s,v) => s+(v.custo||v.custo_unit||0), 0);
-
+    const allImgs    = [p.foto,...(p.galeria||[]),...(p.referencias_urls||[])].filter(Boolean);
     return `<tr>
       <td style="font-family:monospace;font-weight:600;color:var(--gold-dark)">${p.ref}</td>
       <td>${p.nome}</td>
       <td style="text-align:center">
-        ${(() => {
-          const allImgs = [p.foto, ...(p.galeria||[]), ...(p.referencias_urls||[])].filter(Boolean);
-          if(!allImgs.length) return '<span style="color:var(--silver);font-size:12px">—</span>';
-          return `<div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:wrap">
-            <div onclick="viewDistFotos('${p.ref}')" style="cursor:pointer;width:44px;height:44px;border-radius:8px;overflow:hidden;border:2px solid var(--gold-light);flex-shrink:0">
-              <img src="${allImgs[0]}" style="width:100%;height:100%;object-fit:cover">
-            </div>
-            ${allImgs.length > 1 ? `<span onclick="viewDistFotos('${p.ref}')" style="cursor:pointer;font-size:11px;color:var(--gold-dark);font-weight:600">+${allImgs.length-1}</span>` : ''}
-          </div>`;
-        })()}
+        ${allImgs.length ? `<div style="display:flex;gap:4px;justify-content:center;align-items:center">
+          <div onclick="viewDistFotos('${p.ref}')" style="cursor:pointer;width:44px;height:44px;border-radius:8px;overflow:hidden;border:2px solid var(--gold-light)">
+            <img src="${allImgs[0]}" style="width:100%;height:100%;object-fit:cover">
+          </div>
+          ${allImgs.length>1?`<span onclick="viewDistFotos('${p.ref}')" style="cursor:pointer;font-size:11px;color:var(--gold-dark);font-weight:600">+${allImgs.length-1}</span>`:''}
+        </div>` : '<span style="color:var(--silver);font-size:12px">—</span>'}
       </td>
-      <td style="text-align:center">${entradas}</td>
+      <td style="text-align:center">${entradas||'—'}</td>
       <td style="text-align:center;font-weight:600;color:var(--success)">${qtdVendida||'—'}</td>
       <td style="text-align:center"><span class="stock-pill ${estoque===0?'zero':estoque<=2?'low':'ok'}">${estoque}</span></td>
       <td>${fmtBRL(p.custo)}</td>
       <td style="font-weight:600;color:var(--charcoal)">${aReceber>0?fmtBRL(aReceber):'—'}</td>
     </tr>`;
   }).join('');
+
 }
 
 // ═══════════════════════════════════════════════════════
