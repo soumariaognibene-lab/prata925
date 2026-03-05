@@ -517,6 +517,7 @@ tbody tr:last-child td { border-bottom: none; }
 .badge-pulseira { background: rgba(39,174,96,0.1); color: var(--success); }
 .badge-tornozeleira { background: rgba(243,156,18,0.1); color: var(--warning); }
 .badge-pingente { background: rgba(231,76,60,0.1); color: var(--danger); }
+.badge-conjunto { background: rgba(142,68,173,0.1); color: #8e44ad; }
 .badge-venda { background: rgba(39,174,96,0.12); color: var(--success); }
 .badge-entrada { background: rgba(41,128,185,0.12); color: var(--info); }
 .badge-troca { background: rgba(243,156,18,0.12); color: var(--warning); }
@@ -1532,11 +1533,12 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <div style="display:flex;gap:8px">
             <select class="field-input" id="filter-tipo-mov" onchange="renderMovimentacoes()" style="width:160px">
               <option value="">Todos os tipos</option>
-              <option value="entrada">Entrada</option>
-              <option value="venda">Venda</option>
-              <option value="troca">Troca</option>
-              <option value="devolucao">Devolução</option>
-              <option value="ajuste">Ajuste</option>
+              <option value="entrada">📥 Entrada</option>
+              <option value="retirada">📤 Retirada</option>
+              <option value="ajuste">⚙️ Ajuste</option>
+              <option value="devolucao">↩️ Devolução</option>
+              <option value="troca">🔄 Troca</option>
+              <option value="venda">💰 Venda</option>
             </select>
           </div>
         </div>
@@ -1826,6 +1828,7 @@ textarea.field-input { resize: vertical; min-height: 80px; }
             <option value="pulseira">Pulseira</option>
             <option value="tornozeleira">Tornozeleira</option>
             <option value="pingente">Pingente</option>
+            <option value="conjunto">Conjunto</option>
           </select>
         </div>
         <div class="field-group">
@@ -1994,10 +1997,11 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         <div class="field-group">
           <label class="field-label">Tipo *</label>
           <select class="field-input" id="m-tipo">
-            <option value="entrada">Entrada</option>
-            <option value="troca">Troca</option>
-            <option value="devolucao">Devolução</option>
-            <option value="ajuste">Ajuste</option>
+            <option value="entrada">📥 Entrada</option>
+            <option value="retirada">📤 Retirada (correção)</option>
+            <option value="ajuste">⚙️ Ajuste manual</option>
+            <option value="devolucao">↩️ Devolução</option>
+            <option value="troca">🔄 Troca</option>
           </select>
         </div>
         <div class="field-group">
@@ -2579,6 +2583,7 @@ function getCatEmoji(cat) {
     pulseira:    '🔗',
     tornozeleira:'🦶',
     pingente:    '🏷️',
+    conjunto:    '🎁',
   };
   return map[(cat||'').toLowerCase()] || '💎';
 }
@@ -2642,7 +2647,7 @@ function getStockByRef(ref) {
     } else {
       // Fallback compatibilidade schema antigo
       if(m.tipo==='entrada'||m.tipo==='devolucao'||m.tipo==='estorno') qty += Number(m.qtd);
-      else if(m.tipo==='venda'||m.tipo==='troca') qty -= Number(m.qtd);
+      else if(m.tipo==='venda'||m.tipo==='troca'||m.tipo==='retirada') qty -= Number(m.qtd);
       else if(m.tipo==='ajuste') qty += Number(m.qtd);
     }
   });
@@ -2657,7 +2662,7 @@ function getAllStocks() {
       stocks[m.ref] += Number(m.sinal) * Number(m.qtd);
     } else {
       if(m.tipo==='entrada'||m.tipo==='devolucao'||m.tipo==='estorno') stocks[m.ref] += Number(m.qtd);
-      else if(m.tipo==='venda'||m.tipo==='troca') stocks[m.ref] -= Number(m.qtd);
+      else if(m.tipo==='venda'||m.tipo==='troca'||m.tipo==='retirada') stocks[m.ref] -= Number(m.qtd);
       else if(m.tipo==='ajuste') stocks[m.ref] += Number(m.qtd);
     }
   });
@@ -2834,7 +2839,7 @@ async function renderDashboard() {
 
 function renderCategFilters() {
   const cats = ['','anel','brinco','colar','pulseira','tornozeleira','pingente'];
-  const labels = {'':`Todos`,anel:'Anéis',brinco:'Brincos',colar:'Colares',pulseira:'Pulseiras',tornozeleira:'Tornozeleiras',pingente:'Pingentes'};
+  const labels = {'':`Todos`,anel:'Anéis',brinco:'Brincos',colar:'Colares',pulseira:'Pulseiras',tornozeleira:'Tornozeleiras',pingente:'Pingentes',conjunto:'Conjuntos'};
   document.getElementById('filter-categorias').innerHTML = cats.map(c=>`
     <button class="chip ${activeCategFilter===c?'active':''}" onclick="activeCategFilter='${c}';renderCategFilters();renderProdutos()">${getCatEmoji(c)||'🔍'} ${labels[c]}</button>
   `).join('');
@@ -3608,7 +3613,7 @@ async function saveMov() {
   if(!cache.produtos.find(p=>p.ref===ref)) { toast('Produto não encontrado: '+ref, 'error'); return; }
 
   // Calcular sinal correto conforme tipo
-  const sinal = (tipo==='venda' || tipo==='troca') ? -1 : 1;
+  const sinal = (tipo==='venda' || tipo==='troca' || tipo==='retirada') ? -1 : 1;
 
   const mov = {
     id:      genId(),
