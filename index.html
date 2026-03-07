@@ -1754,6 +1754,28 @@ textarea.field-input { resize: vertical; min-height: 80px; }
       <!-- ABA: BANCO DE DADOS -->
       <div id="cfg-panel-banco" style="display:none;max-width:600px">
 
+        <!-- CARD: BACKUP AUTOMÁTICO -->
+        <div class="card" style="margin-bottom:20px;border:1.5px solid rgba(201,168,76,0.3)">
+          <div class="card-header" style="background:rgba(201,168,76,0.06)">
+            <span class="card-title">🛡️ Backup do Sistema</span>
+            <button class="btn btn-gold btn-sm" onclick="fazerBackupManual()" id="btn-backup-manual">
+              ☁️ Fazer Backup Agora
+            </button>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--charcoal-soft);margin-bottom:16px;line-height:1.6">
+              O backup salva um snapshot completo de todos os dados no próprio banco. Backups automáticos são gerados toda vez que você faz login. Os últimos <strong>30 backups</strong> são mantidos.
+            </p>
+
+            <!-- Lista de backups -->
+            <div id="backup-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+              <div style="text-align:center;padding:20px;color:var(--silver);font-size:13px">Carregando backups...</div>
+            </div>
+
+            <button class="btn btn-outline" style="width:100%" onclick="carregarBackups()">🔄 Atualizar lista</button>
+          </div>
+        </div>
+
         <!-- CARD: EXPORTAR -->
         <div class="card" style="margin-bottom:20px">
           <div class="card-header"><span class="card-title">📥 Exportar Dados</span></div>
@@ -2454,22 +2476,47 @@ async function doLogout() {
 
 // Auto-login se tiver sessão salva (refresh token)
 (async function checkSession() {
-  try {
-    const raw = localStorage.getItem('p925_session');
-    if(!raw) return;
-    const saved = JSON.parse(raw);
-    // Sessão válida por 30 dias
-    if(Date.now() - saved.ts > 30 * 24 * 60 * 60 * 1000) {
-      localStorage.removeItem('p925_session'); return;
-    }
-    const session = await supaAuth.refreshSession(saved.refresh_token);
-    if(!session?.access_token) { localStorage.removeItem('p925_session'); return; }
+  const raw = localStorage.getItem('p925_session');
+  if(!raw) return;
 
+  let saved;
+  try { saved = JSON.parse(raw); } catch(e) { localStorage.removeItem('p925_session'); return; }
+
+  // Sessão válida por 30 dias
+  if(Date.now() - saved.ts > 30 * 24 * 60 * 60 * 1000) {
+    localStorage.removeItem('p925_session'); return;
+  }
+
+  // Tentar restaurar com até 3 tentativas (protege contra falhas de rede transitória)
+  let session = null;
+  for(let tentativa = 1; tentativa <= 3; tentativa++) {
+    try {
+      session = await supaAuth.refreshSession(saved.refresh_token);
+      if(session?.access_token) break; // sucesso
+    } catch(e) {
+      if(tentativa < 3) {
+        await new Promise(r => setTimeout(r, tentativa * 800)); // espera 0.8s, 1.6s...
+        continue;
+      }
+      // Após 3 tentativas falhas: NÃO remove a sessão — pode ser offline temporário
+      // Mostra tela de login mas mantém token para próxima vez
+      console.warn('Sessão não pôde ser restaurada agora, token mantido:', e);
+      return;
+    }
+  }
+
+  // Refresh retornou mas sem token válido = sessão expirada no servidor
+  if(!session?.access_token) {
+    localStorage.removeItem('p925_session');
+    return;
+  }
+
+  try {
     _authToken = session.access_token;
     const profiles = await fetch(
       `${SUPA_URL}/rest/v1/user_profiles?id=eq.${session.user.id}&select=*`,
       { headers: { apikey: SUPA_ANON, Authorization: `Bearer ${_authToken}` } }
-    ).then(r=>r.json());
+    ).then(r => r.json());
     const profile = profiles[0] || { role: 'dist', name: session.user.email };
 
     currentUser = {
@@ -2481,6 +2528,7 @@ async function doLogout() {
       refresh_token: session.refresh_token
     };
 
+    // Atualizar token salvo com o novo refresh_token
     localStorage.setItem('p925_session', JSON.stringify({
       refresh_token: session.refresh_token,
       user_id: session.user.id,
@@ -2491,7 +2539,8 @@ async function doLogout() {
     document.getElementById('app').style.display = 'block';
     initApp();
   } catch(e) {
-    localStorage.removeItem('p925_session');
+    // Erro ao carregar perfil — NÃO apaga sessão, mostra login para tentar novamente
+    console.warn('Erro ao carregar perfil do usuário:', e);
   }
 })();
 
@@ -2513,6 +2562,11 @@ async function initApp() {
   const thisMonth_ = thisMonth();
   ['v-data','m-data'].forEach(id => { const el=document.getElementById(id); if(el) el.value=today_; });
   ['filter-mes-venda','rel-inicio','rel-fim'].forEach(id => { const el=document.getElementById(id); if(el) el.value=thisMonth_; });
+
+  // Backup automático silencioso ao fazer login (somente admin)
+  if(currentUser.role === 'admin') {
+    setTimeout(() => fazerBackup('automatico'), 3000); // espera 3s para não atrapalhar o carregamento
+  }
 }
 
 function renderNav() {
@@ -3986,7 +4040,7 @@ function switchCfgTab(tab) {
   document.getElementById('cfg-panel-banco').style.display  = tab==='banco'  ? '' : 'none';
   document.getElementById('cfg-tab-geral').classList.toggle('active', tab==='geral');
   document.getElementById('cfg-tab-banco').classList.toggle('active', tab==='banco');
-  if(tab==='banco') atualizarDbStats();
+  if(tab==='banco') { atualizarDbStats(); carregarBackups(); }
 }
 
 // ── Estatísticas do banco ─────────────────────────────────────
@@ -4147,6 +4201,101 @@ async function exportarProdutosZip() {
 }
 
 // ── Exportar tudo (CSV vendas + movs + produtos com fotos) ───
+// ═══════════════════════════════════════════════════════
+// BACKUP
+// ═══════════════════════════════════════════════════════
+const BACKUP_EDGE_URL = SUPA_URL + '/functions/v1/backup-diario';
+
+async function fazerBackup(tipo = 'automatico') {
+  try {
+    const res = await fetch(`${BACKUP_EDGE_URL}?tipo=${tipo}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPA_ANON
+      },
+      body: '{}'
+    });
+    const data = await res.json();
+    return data.ok;
+  } catch(e) {
+    console.warn('Backup silencioso falhou:', e);
+    return false;
+  }
+}
+
+async function fazerBackupManual() {
+  const btn = document.getElementById('btn-backup-manual');
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  const ok = await fazerBackup('manual');
+  if(btn) { btn.disabled = false; btn.textContent = '☁️ Fazer Backup Agora'; }
+  if(ok) {
+    toast('✅ Backup salvo com sucesso!', 'success');
+    carregarBackups();
+  } else {
+    toast('❌ Erro ao salvar backup', 'error');
+  }
+}
+
+async function carregarBackups() {
+  const lista = document.getElementById('backup-lista');
+  if(!lista) return;
+  lista.innerHTML = '<div style="text-align:center;padding:16px;color:var(--silver);font-size:13px">Carregando...</div>';
+
+  const { data, error } = await supa
+    .from('backups')
+    .select('id, criado_em, tipo, resumo')
+    .order('criado_em', { ascending: false })
+    .limit(15);
+
+  if(error || !data?.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:16px;color:var(--silver);font-size:13px">Nenhum backup encontrado ainda.</div>';
+    return;
+  }
+
+  lista.innerHTML = data.map(b => {
+    const d = new Date(b.criado_em);
+    const dataStr = d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    const r = b.resumo || {};
+    const isAuto = b.tipo === 'automatico';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--cream);border-radius:10px;font-size:13px">
+      <span style="font-size:18px">${isAuto ? '🤖' : '👤'}</span>
+      <div style="flex:1">
+        <div style="font-weight:600;color:var(--charcoal)">${dataStr}</div>
+        <div style="color:var(--silver);font-size:11px;margin-top:2px">
+          ${r.produtos||0} produtos · ${r.movimentacoes||0} movimentações · ${r.vendas||0} vendas
+          · <span style="color:${isAuto?'var(--info)':'var(--gold-dark)'}">${isAuto?'automático':'manual'}</span>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="baixarBackup(${b.id})" title="Baixar como JSON">⬇️</button>
+    </div>`;
+  }).join('');
+}
+
+async function baixarBackup(id) {
+  const { data, error } = await supa
+    .from('backups')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if(error || !data) { toast('Erro ao baixar backup', 'error'); return; }
+
+  const d = new Date(data.criado_em);
+  const nome = `prata925_backup_${d.toISOString().slice(0,10)}_${d.toTimeString().slice(0,5).replace(':','h')}.json`;
+  const json = JSON.stringify({
+    gerado_em: data.criado_em,
+    tipo: data.tipo,
+    produtos: data.produtos,
+    movimentacoes: data.movimentacoes,
+    vendas: data.vendas,
+    config: data.config
+  }, null, 2);
+
+  _downloadBlob(new Blob([json], {type:'application/json'}), nome);
+  toast(`✅ Backup de ${d.toLocaleDateString('pt-BR')} baixado`);
+}
+
 async function exportarTudo() {
   const total = cache.produtos.length + cache.vendas.length + cache.movimentacoes.length;
   if(!total) { toast('Banco vazio — nada para exportar', 'warning'); return; }
