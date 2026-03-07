@@ -2565,7 +2565,16 @@ async function initApp() {
 
   // Backup automático silencioso ao fazer login (somente admin)
   if(currentUser.role === 'admin') {
-    setTimeout(() => fazerBackup('automatico'), 3000); // espera 3s para não atrapalhar o carregamento
+    setTimeout(() => {
+      // Backup automático só 1x por dia
+      const ultimoBackup = localStorage.getItem('p925_ultimo_backup');
+      const umDia = 24 * 60 * 60 * 1000;
+      if(!ultimoBackup || Date.now() - Number(ultimoBackup) > umDia) {
+        fazerBackup('automatico').then(ok => {
+          if(ok) localStorage.setItem('p925_ultimo_backup', Date.now());
+        });
+      }
+    }, 3000);
   }
 }
 
@@ -4242,6 +4251,7 @@ async function fazerBackupManual() {
   const ok = await fazerBackup('manual');
   if(btn) { btn.disabled = false; btn.textContent = '☁️ Fazer Backup Agora'; }
   if(ok) {
+    localStorage.setItem('p925_ultimo_backup', Date.now());
     toast('✅ Backup salvo com sucesso!', 'success');
     carregarBackups();
   } else {
