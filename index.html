@@ -1453,6 +1453,34 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <span>＋</span> <span>Registrar Movimentação</span>
         </button>
       </div>
+
+      <!-- Barra de pesquisa + filtros -->
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <div style="position:relative;flex:1;min-width:200px">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>
+          <input class="field-input" id="estoque-search" type="text" placeholder="Buscar por nome ou referência..."
+            style="padding-left:38px;width:100%"
+            oninput="renderEstoque()">
+        </div>
+        <select class="field-input" id="estoque-filter-cat" onchange="renderEstoque()" style="width:160px">
+          <option value="">Todas as categorias</option>
+          <option value="anel">💍 Anéis</option>
+          <option value="brinco">✨ Brincos</option>
+          <option value="colar">📿 Colares</option>
+          <option value="pulseira">🔗 Pulseiras</option>
+          <option value="tornozeleira">🦶 Tornozeleiras</option>
+          <option value="pingente">🏷️ Pingentes</option>
+          <option value="conjunto">🎁 Conjuntos</option>
+        </select>
+        <select class="field-input" id="estoque-filter-status" onchange="renderEstoque()" style="width:150px">
+          <option value="">Todos</option>
+          <option value="ok">✅ Em estoque</option>
+          <option value="low">⚠️ Estoque baixo</option>
+          <option value="zero">🚫 Zerado</option>
+        </select>
+        <span id="estoque-count" style="font-size:12px;color:var(--silver);white-space:nowrap"></span>
+      </div>
+
       <div class="card">
         <div class="table-wrapper">
           <table>
@@ -3302,15 +3330,62 @@ function renderRefsPreview() {
 // ESTOQUE
 // ═══════════════════════════════════════════════════════
 function renderEstoque() {
-  const prods  = cache.produtos.filter(p => p.status !== 'inativo');
+  const busca     = (document.getElementById('estoque-search')?.value || '').toLowerCase().trim();
+  const filterCat = document.getElementById('estoque-filter-cat')?.value  || '';
+  const filterSt  = document.getElementById('estoque-filter-status')?.value || '';
+
   const stocks = getAllStocks();
-  const tbody  = document.getElementById('tbody-estoque');
-  tbody.innerHTML = prods.map(p=>{
-    const q = stocks[p.ref]||0;
+
+  let prods = cache.produtos.filter(p => p.status !== 'inativo');
+
+  // Filtro categoria
+  if(filterCat) prods = prods.filter(p => p.cat === filterCat);
+
+  // Filtro status de estoque
+  if(filterSt) prods = prods.filter(p => {
+    const q = stocks[p.ref] || 0;
+    if(filterSt === 'zero') return q === 0;
+    if(filterSt === 'low')  return q > 0 && q <= 2;
+    if(filterSt === 'ok')   return q > 2;
+    return true;
+  });
+
+  // Busca por nome ou ref
+  if(busca) prods = prods.filter(p =>
+    (p.nome||'').toLowerCase().includes(busca) ||
+    (p.ref||'').toLowerCase().includes(busca)
+  );
+
+  // Atualizar contador
+  const countEl = document.getElementById('estoque-count');
+  if(countEl) {
+    const total = cache.produtos.filter(p => p.status !== 'inativo').length;
+    countEl.textContent = prods.length < total
+      ? `${prods.length} de ${total} produtos`
+      : `${total} produtos`;
+  }
+
+  const tbody = document.getElementById('tbody-estoque');
+  if(!tbody) return;
+
+  if(!prods.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--silver)">
+      ${busca || filterCat || filterSt ? '🔍 Nenhum produto encontrado para esta busca' : '📦 Nenhum produto cadastrado'}
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = prods.map(p => {
+    const q = stocks[p.ref] || 0;
+    // Destacar termo buscado no nome
+    const nome = busca
+      ? (p.nome||'').replace(new RegExp(`(${busca.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),
+          '<mark style="background:rgba(201,168,76,0.3);border-radius:2px;padding:0 2px">$1</mark>')
+      : (p.nome||'');
     return `<tr class="${q<=2?'low-stock-row':''}">
       <td><div class="product-cell">
         <div class="product-thumb">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:`<span>${getCatEmoji(p.cat)}</span>`}</div>
-        <div><div class="product-name">${p.nome}</div><div class="product-ref">${p.ref}</div></div>
+        <div><div class="product-name">${nome}</div><div class="product-ref">${p.ref}</div></div>
       </div></td>
       <td><span class="badge badge-${p.cat}">${p.cat}</span></td>
       <td><span class="stock-pill ${q===0?'zero':q<=2?'low':'ok'}">${q===0?'⚠️':''} ${q} un</span></td>
@@ -3653,42 +3728,60 @@ function renderRelatorios() {
   const totalVendas = vendas.reduce((s,v)=>s+(v.valor||v.valor_total||0),0);
   const totalLucro  = vendas.reduce((s,v)=>s+(v.lucro||v.lucro_total||0),0);
   const totalCusto  = vendas.reduce((s,v)=>s+(v.custo||v.custo_unit||0),0);
+  const totalItens  = vendas.reduce((s,v)=>s+(v.qtd||1),0);
   const margemPct   = totalVendas > 0 ? ((totalLucro/totalVendas)*100).toFixed(1)+'%' : '0%';
   const vlCancelado = canceladas.reduce((s,v)=>s+(v.valor||v.valor_total||0),0);
 
   document.getElementById('rel-stats').innerHTML = `
-    <div class="stat-card green"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(totalVendas)}</div><div class="stat-label">Receita (vendas OK)</div></div>
+    <div class="stat-card green"><span class="stat-icon">💰</span><div class="stat-value">${fmtBRL(totalVendas)}</div><div class="stat-label">Receita (vendas OK)</div><div class="stat-sub">${vendas.length} transações • ${totalItens} itens</div></div>
     <div class="stat-card"><span class="stat-icon">✨</span><div class="stat-value">${fmtBRL(totalLucro)}</div><div class="stat-label">Lucro Total</div></div>
     <div class="stat-card blue"><span class="stat-icon">📊</span><div class="stat-value">${margemPct}</div><div class="stat-label">Margem Líquida</div></div>
     <div class="stat-card orange"><span class="stat-icon">⚠️</span><div class="stat-value">${canceladas.length}</div><div class="stat-label">Canceladas ${vlCancelado>0?'('+fmtBRL(vlCancelado)+')':''}</div></div>
   `;
 
-  // Top produtos (apenas vendas OK)
+  // Top produtos (apenas vendas OK) — com qtd
   const prodVendas = {};
-  vendas.forEach(v=>{ prodVendas[v.ref]=(prodVendas[v.ref]||0)+(v.valor||v.valor_total||0); });
+  const prodQtds   = {};
+  vendas.forEach(v => {
+    prodVendas[v.ref] = (prodVendas[v.ref]||0) + (v.valor||v.valor_total||0);
+    prodQtds[v.ref]   = (prodQtds[v.ref]||0)   + (v.qtd||1);
+  });
   const top  = Object.entries(prodVendas).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const maxV = top[0]?.[1]||1;
   document.getElementById('rel-top-produtos').innerHTML = top.length ? `
     <div class="bar-chart">${top.map(([ref,val])=>{
       const p=prods.find(x=>x.ref===ref)||{};
+      const q=prodQtds[ref]||0;
       return `<div class="bar-row">
         <span class="bar-label" style="font-size:11px">${p.nome||ref}</span>
         <div class="bar-track"><div class="bar-fill" style="width:${(val/maxV*100).toFixed(0)}%"></div></div>
-        <span class="bar-value">${fmtBRL(val)}</span>
+        <span class="bar-value" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+          <span>${fmtBRL(val)}</span>
+          <span style="font-size:10px;color:var(--silver);font-weight:400">${q} ${q===1?'un':'un'}</span>
+        </span>
       </div>`;
     }).join('')}</div>` : '<div class="empty-state" style="padding:20px"><p>Sem dados</p></div>';
 
-  // Por categoria
+  // Por categoria — com qtd
   const catVendas = {};
-  vendas.forEach(v=>{ const p=prods.find(x=>x.ref===v.ref)||{}; const c=p.cat||'?'; catVendas[c]=(catVendas[c]||0)+(v.valor||v.valor_total||0); });
+  const catQtds   = {};
+  vendas.forEach(v => {
+    const p=prods.find(x=>x.ref===v.ref)||{};
+    const c=p.cat||'?';
+    catVendas[c] = (catVendas[c]||0) + (v.valor||v.valor_total||0);
+    catQtds[c]   = (catQtds[c]||0)   + (v.qtd||1);
+  });
   const catMax = Math.max(...Object.values(catVendas),1);
-  const catColors = {anel:'var(--gold)',brinco:'var(--info)',colar:'#8E44AD',pulseira:'var(--success)',tornozeleira:'var(--warning)',pingente:'var(--danger)'};
+  const catColors = {anel:'var(--gold)',brinco:'var(--info)',colar:'#8E44AD',pulseira:'var(--success)',tornozeleira:'var(--warning)',pingente:'var(--danger)',conjunto:'#C0392B'};
   document.getElementById('rel-cat-chart').innerHTML = Object.entries(catVendas).length ? `
     <div class="bar-chart">${Object.entries(catVendas).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>`
       <div class="bar-row">
         <span class="bar-label">${getCatEmoji(cat)} ${cat}</span>
         <div class="bar-track"><div class="bar-fill" style="width:${(val/catMax*100).toFixed(0)}%;background:${catColors[cat]||'var(--gold)'}"></div></div>
-        <span class="bar-value">${fmtBRL(val)}</span>
+        <span class="bar-value" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+          <span>${fmtBRL(val)}</span>
+          <span style="font-size:10px;color:var(--silver);font-weight:400">${catQtds[cat]||0} un</span>
+        </span>
       </div>`).join('')}</div>` : '<div class="empty-state" style="padding:20px"><p>Sem dados</p></div>';
 }
 
