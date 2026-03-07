@@ -4204,22 +4204,38 @@ async function exportarProdutosZip() {
 // ═══════════════════════════════════════════════════════
 // BACKUP
 // ═══════════════════════════════════════════════════════
-const BACKUP_EDGE_URL = SUPA_URL + '/functions/v1/backup-diario';
 
 async function fazerBackup(tipo = 'automatico') {
   try {
-    const res = await fetch(`${BACKUP_EDGE_URL}?tipo=${tipo}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPA_ANON
-      },
-      body: '{}'
-    });
-    const data = await res.json();
-    return data.ok;
+    // Busca todos os dados do cache local (já carregado)
+    const produtos      = cache.produtos;
+    const movimentacoes = cache.movimentacoes;
+    const vendas        = cache.vendas;
+    const config        = cache.config ? [cache.config] : [];
+
+    const { error } = await supa
+      .from('backups')
+      .insert({
+        tipo,
+        produtos,
+        movimentacoes,
+        vendas,
+        config,
+        resumo: {
+          produtos:      produtos.length,
+          movimentacoes: movimentacoes.length,
+          vendas:        vendas.length,
+          gerado_em:     new Date().toISOString()
+        }
+      });
+
+    if(error) { console.warn('Backup erro:', error); return false; }
+
+    // Limpar backups antigos (manter últimos 30)
+    await supa.rpc('limpar_backups_antigos');
+    return true;
   } catch(e) {
-    console.warn('Backup silencioso falhou:', e);
+    console.warn('Backup falhou:', e);
     return false;
   }
 }
