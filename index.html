@@ -517,7 +517,8 @@ tbody tr:last-child td { border-bottom: none; }
 .badge-pulseira { background: rgba(39,174,96,0.1); color: var(--success); }
 .badge-tornozeleira { background: rgba(243,156,18,0.1); color: var(--warning); }
 .badge-pingente { background: rgba(231,76,60,0.1); color: var(--danger); }
-.badge-conjunto { background: rgba(142,68,173,0.1); color: #8e44ad; }
+.badge-conjunto    { background: rgba(142,68,173,0.1); color: #8e44ad; }
+.badge-moissanite  { background: rgba(0,188,212,0.1);  color: #00838F; }
 .badge-venda { background: rgba(39,174,96,0.12); color: var(--success); }
 .badge-entrada { background: rgba(41,128,185,0.12); color: var(--info); }
 .badge-troca { background: rgba(243,156,18,0.12); color: var(--warning); }
@@ -1471,6 +1472,7 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <option value="tornozeleira">🦶 Tornozeleiras</option>
           <option value="pingente">🏷️ Pingentes</option>
           <option value="conjunto">🎁 Conjuntos</option>
+          <option value="moissanite">💎 Moissanite</option>
         </select>
         <select class="field-input" id="estoque-filter-status" onchange="renderEstoque()" style="width:150px">
           <option value="">Todos</option>
@@ -1879,10 +1881,8 @@ textarea.field-input { resize: vertical; min-height: 80px; }
             <option value="tornozeleira">Tornozeleira</option>
             <option value="pingente">Pingente</option>
             <option value="conjunto">Conjunto</option>
+            <option value="moissanite">Moissanite</option>
           </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Peso (g)</label>
           <input class="field-input" id="p-peso" type="number" step="0.1" placeholder="Opcional">
         </div>
       </div>
@@ -2675,6 +2675,7 @@ function getCatEmoji(cat) {
     tornozeleira:'🦶',
     pingente:    '🏷️',
     conjunto:    '🎁',
+    moissanite:  '💎',
   };
   return map[(cat||'').toLowerCase()] || '💎';
 }
@@ -2929,8 +2930,8 @@ async function renderDashboard() {
 
 
 function renderCategFilters() {
-  const cats = ['','anel','brinco','colar','pulseira','tornozeleira','pingente'];
-  const labels = {'':`Todos`,anel:'Anéis',brinco:'Brincos',colar:'Colares',pulseira:'Pulseiras',tornozeleira:'Tornozeleiras',pingente:'Pingentes',conjunto:'Conjuntos'};
+  const cats = ['','anel','brinco','colar','pulseira','tornozeleira','pingente','conjunto','moissanite'];
+  const labels = {'':`Todos`,anel:'Anéis',brinco:'Brincos',colar:'Colares',pulseira:'Pulseiras',tornozeleira:'Tornozeleiras',pingente:'Pingentes',conjunto:'Conjuntos',moissanite:'Moissanite'};
   document.getElementById('filter-categorias').innerHTML = cats.map(c=>`
     <button class="chip ${activeCategFilter===c?'active':''}" onclick="activeCategFilter='${c}';renderCategFilters();renderProdutos()">${getCatEmoji(c)||'🔍'} ${labels[c]}</button>
   `).join('');
@@ -3835,7 +3836,7 @@ function renderRelatorios() {
     catQtds[c]   = (catQtds[c]||0)   + (v.qtd||1);
   });
   const catMax = Math.max(...Object.values(catVendas),1);
-  const catColors = {anel:'var(--gold)',brinco:'var(--info)',colar:'#8E44AD',pulseira:'var(--success)',tornozeleira:'var(--warning)',pingente:'var(--danger)',conjunto:'#C0392B'};
+  const catColors = {anel:'var(--gold)',brinco:'var(--info)',colar:'#8E44AD',pulseira:'var(--success)',tornozeleira:'var(--warning)',pingente:'var(--danger)',conjunto:'#C0392B',moissanite:'#00838F'};
   document.getElementById('rel-cat-chart').innerHTML = Object.entries(catVendas).length ? `
     <div class="bar-chart">${Object.entries(catVendas).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>`
       <div class="bar-row">
