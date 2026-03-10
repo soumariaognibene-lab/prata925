@@ -1659,9 +1659,10 @@ textarea.field-input { resize: vertical; min-height: 80px; }
       </div>
 
       <div class="dist-summary">
-        <h3>Valor a Receber no Período</h3>
+        <h3>Saldo Pendente de Acerto</h3>
         <div class="amount" id="dist-total-receber">R$ 0,00</div>
         <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px" id="dist-periodo-sub"></p>
+        <div id="dist-periodo-detalhe" style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px"></div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -4133,6 +4134,7 @@ function renderDistribuidor() {
   const labelEl = document.getElementById('dist-periodo-label');
   if(labelEl) labelEl.textContent = label;
 
+  // Vendas do período (para a tabela)
   const filteredVendas = vendas.filter(v =>
     v.status !== 'cancelada' &&
     (!iniDate || v.data >= iniDate) &&
@@ -4144,10 +4146,19 @@ function renderDistribuidor() {
     (!fimDate || m.data <= fimDate)
   );
 
-  const totalReceber = filteredVendas.reduce((s,v) => s + (v.custo||v.custo_unit||0), 0);
-  document.getElementById('dist-total-receber').textContent = fmtBRL(totalReceber);
+  // Saldo pendente TOTAL (independente de período — todas as vendas sem acerto)
+  const pendentes = _vendasPendentes();
+  const totalPendente = pendentes.reduce((s,v) => s + (v.custo||v.custo_unit||0), 0);
+  document.getElementById('dist-total-receber').textContent = fmtBRL(totalPendente);
+
   const subEl = document.getElementById('dist-periodo-sub');
-  if(subEl) subEl.textContent = filteredVendas.length + ' venda' + (filteredVendas.length!==1?'s':'') + ' no período';
+  if(subEl) subEl.textContent = pendentes.length + ' venda' + (pendentes.length!==1?'s':'') + ' pendente' + (pendentes.length!==1?'s':'') + ' de acerto';
+
+  // Detalhe do período selecionado
+  const totalPeriodo = filteredVendas.filter(v => !v.acerto_id || _vendasPendentes().find(p=>p.id===v.id))
+    .reduce((s,v) => s + (v.custo||v.custo_unit||0), 0);
+  const detalheEl = document.getElementById('dist-periodo-detalhe');
+  if(detalheEl) detalheEl.textContent = `${label}: ${filteredVendas.length} venda${filteredVendas.length!==1?'s':''} registrada${filteredVendas.length!==1?'s':''}  no período`;
 
   const stocks = getAllStocks();
   const tbody  = document.getElementById('tbody-dist');
@@ -4179,8 +4190,7 @@ function renderDistribuidor() {
     </tr>`;
   }).join('');
 
-  // Badge de pendentes (vendas sem acerto em todo o sistema, não só no período)
-  const pendentes = _vendasPendentes();
+  // Badge de pendentes (reutiliza a variável já calculada acima)
   const badge = document.getElementById('dist-badge-pendente');
   if(badge) {
     if(pendentes.length > 0) {
