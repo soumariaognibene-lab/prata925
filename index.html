@@ -3196,7 +3196,7 @@ function renderProdutos() {
     <tr class="${qty(p)<=2&&isAtivo?'low-stock-row':''}" onclick="viewProduto('${p.ref}')" style="cursor:pointer${isAtivo?'':';opacity:0.6'}">
       <td onclick="event.stopPropagation()">
         ${isAtivo && isAdmin ? `<input type="checkbox" class="prod-check" data-ref="${p.ref}"
-          onchange="atualizarSelecaoProdutos()"
+          onchange="onProdCheck('${p.ref}', this.checked)"
           style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">` : ''}
       </td>
       <td>
@@ -3459,16 +3459,19 @@ async function saveProduto() {
 // DEVOLUÇÃO DE PRODUTOS AO DISTRIBUIDOR
 // ═══════════════════════════════════════════════════════
 
+// Set persistente — sobrevive a qualquer re-render da tabela
+const _refsDevolver = new Set();
+
 function _getProdutosSelecionados() {
-  return [...document.querySelectorAll('.prod-check:checked')].map(el => el.dataset.ref);
+  return [..._refsDevolver];
 }
 
 function atualizarSelecaoProdutos() {
-  const refs = _getProdutosSelecionados();
-  const toolbar  = document.getElementById('prod-selecao-toolbar');
-  const countEl  = document.getElementById('prod-sel-count');
-  const checkAll = document.getElementById('prod-check-all');
-  const total    = document.querySelectorAll('.prod-check').length;
+  const refs    = [..._refsDevolver];
+  const toolbar = document.getElementById('prod-selecao-toolbar');
+  const countEl = document.getElementById('prod-sel-count');
+  const checkAll= document.getElementById('prod-check-all');
+  const total   = document.querySelectorAll('.prod-check').length;
 
   if(toolbar) toolbar.style.display = refs.length > 0 ? 'flex' : 'none';
   if(countEl) countEl.textContent = `${refs.length} selecionado${refs.length!==1?'s':''}`;
@@ -3476,15 +3479,30 @@ function atualizarSelecaoProdutos() {
     checkAll.indeterminate = refs.length > 0 && refs.length < total;
     checkAll.checked = total > 0 && refs.length === total;
   }
+
+  // Sincronizar checkboxes visíveis com o Set
+  document.querySelectorAll('.prod-check').forEach(el => {
+    el.checked = _refsDevolver.has(el.dataset.ref);
+  });
+}
+
+function onProdCheck(ref, checked) {
+  if(checked) _refsDevolver.add(ref);
+  else        _refsDevolver.delete(ref);
+  atualizarSelecaoProdutos();
 }
 
 function toggleTodosProdutos(checked) {
-  document.querySelectorAll('.prod-check').forEach(el => el.checked = checked);
+  if(checked) {
+    document.querySelectorAll('.prod-check').forEach(el => _refsDevolver.add(el.dataset.ref));
+  } else {
+    document.querySelectorAll('.prod-check').forEach(el => _refsDevolver.delete(el.dataset.ref));
+  }
   atualizarSelecaoProdutos();
 }
 
 function limparSelecaoProdutos() {
-  document.querySelectorAll('.prod-check').forEach(el => el.checked = false);
+  _refsDevolver.clear();
   const checkAll = document.getElementById('prod-check-all');
   if(checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
   atualizarSelecaoProdutos();
