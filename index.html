@@ -1665,9 +1665,18 @@ textarea.field-input { resize: vertical; min-height: 80px; }
         <div id="dist-periodo-detalhe" style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px"></div>
       </div>
       <div class="card">
-        <div class="card-header">
+        <div class="card-header" style="flex-wrap:wrap;gap:8px">
           <span class="card-title">Resumo por Produto</span>
           <span id="dist-badge-pendente" style="display:none;font-size:11px;background:rgba(192,57,43,0.1);color:var(--danger);padding:3px 10px;border-radius:20px;font-weight:600"></span>
+          <input type="text" id="dist-search" placeholder="🔍 Buscar produto ou ref..."
+            oninput="renderDistribuidor()"
+            style="flex:1;min-width:160px;max-width:240px;padding:6px 12px;border:1px solid var(--cream-dark);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--cream);color:var(--charcoal)">
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="dist-toggle-inativos" onchange="renderDistribuidor()"
+              style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">
+            <label for="dist-toggle-inativos" style="font-size:12px;color:var(--silver);cursor:pointer;white-space:nowrap">Ver inativos</label>
+          </div>
+          <span id="dist-prod-count" style="font-size:12px;color:var(--silver);white-space:nowrap"></span>
           <button class="btn btn-gold btn-sm" id="btn-registrar-acerto" onclick="abrirModalAcerto()" style="margin-left:auto">💰 Registrar Acerto</button>
         </div>
         <div class="table-wrapper">
@@ -4139,10 +4148,26 @@ function _distGetDates() {
 
 function renderDistribuidor() {
   const { ini: iniDate, fim: fimDate, label } = _distGetDates();
-  const allProds = cache.produtos.filter(p => p.status !== 'inativo');
-  const prods    = _distCat ? allProds.filter(p => p.cat === _distCat) : allProds;
-  const movs     = cache.movimentacoes;
-  const vendas   = cache.vendas;
+  const search       = (document.getElementById('dist-search')?.value || '').toLowerCase().trim();
+  const showInativos = document.getElementById('dist-toggle-inativos')?.checked || false;
+
+  // Filtro de status
+  let allProds = showInativos
+    ? cache.produtos.filter(p => p.status === 'inativo')
+    : cache.produtos.filter(p => p.status !== 'inativo');
+
+  // Filtro de categoria
+  if(_distCat) allProds = allProds.filter(p => p.cat === _distCat);
+
+  // Filtro de busca
+  if(search) allProds = allProds.filter(p =>
+    (p.nome||'').toLowerCase().includes(search) ||
+    (p.ref||'').toLowerCase().includes(search)
+  );
+
+  const prods = allProds;
+  const movs  = cache.movimentacoes;
+  const vendas = cache.vendas;
 
   renderDistCategFilters();
 
@@ -4204,6 +4229,19 @@ function renderDistribuidor() {
       <td style="font-weight:600;color:var(--charcoal)">${aReceber>0?fmtBRL(aReceber):'—'}</td>
     </tr>`;
   }).join('');
+
+  // Contador de produtos
+  const countEl = document.getElementById('dist-prod-count');
+  if(countEl) {
+    const totalAtivos = cache.produtos.filter(p => p.status !== 'inativo').length;
+    if(search || _distCat) {
+      countEl.textContent = `${prods.length} de ${showInativos ? cache.produtos.filter(p=>p.status==='inativo').length : totalAtivos}`;
+    } else if(showInativos) {
+      countEl.textContent = `${prods.length} inativo${prods.length!==1?'s':''}`;
+    } else {
+      countEl.textContent = `${prods.length} produto${prods.length!==1?'s':''}`;
+    }
+  }
 
   // Badge de pendentes (reutiliza a variável já calculada acima)
   const badge = document.getElementById('dist-badge-pendente');
