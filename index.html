@@ -3096,24 +3096,26 @@ function renderProdutos() {
   const stocks = getAllStocks();
   const search = document.getElementById('search-produtos')?.value.toLowerCase()||'';
   const showInactive = document.getElementById('toggle-inativos')?.checked || false;
+
   const filtered = prods.filter(p =>
-    (showInactive || p.status !== 'inativo') &&
+    (showInactive ? p.status === 'inativo' : p.status !== 'inativo') &&
     (!activeCategFilter || p.cat===activeCategFilter) &&
     (!search || p.ref.toLowerCase().includes(search) || p.nome.toLowerCase().includes(search))
   );
   const isAdmin = currentUser.role==='admin';
 
-  // Contagem: total sempre só ativos; filtered pode incluir inativos se toggle marcado
   const countEl = document.getElementById('produtos-count');
   if(countEl) {
-    const totalAtivos = cache.produtos.filter(p => p.status !== 'inativo').length;
+    const totalAtivos   = cache.produtos.filter(p => p.status !== 'inativo').length;
     const totalInativos = cache.produtos.filter(p => p.status === 'inativo').length;
-    if(filtered.length === 0) {
+    if(showInactive) {
+      countEl.textContent = filtered.length === 0
+        ? 'Nenhum produto inativo'
+        : `${filtered.length} produto${filtered.length!==1?'s':''} inativo${filtered.length!==1?'s':''}`;
+    } else if(filtered.length === 0) {
       countEl.textContent = 'Nenhum produto encontrado';
     } else if(search || activeCategFilter) {
       countEl.textContent = `${filtered.length} de ${totalAtivos} produto${totalAtivos!==1?'s':''}`;
-    } else if(showInactive) {
-      countEl.textContent = `${totalAtivos} ativo${totalAtivos!==1?'s':''} + ${totalInativos} inativo${totalInativos!==1?'s':''}`;
     } else {
       countEl.textContent = `${totalAtivos} produto${totalAtivos!==1?'s':''}`;
     }
