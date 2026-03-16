@@ -2990,8 +2990,8 @@ async function renderDashboard() {
   const toLabel = fmtDate(to);
   document.getElementById('dashboard-date').textContent = `${fromLabel} → ${toLabel}`;
 
-  // Inventory (not date-filtered)
-  const prods = cache.produtos;
+  // Inventory (not date-filtered) — só produtos ativos
+  const prods = cache.produtos.filter(p => p.status !== 'inativo');
   const stocks = getAllStocks();
 
   let totalPecas = 0, valorCusto = 0, valorVenda = 0;
@@ -3091,36 +3091,32 @@ function renderCategFilters() {
   `).join('');
 }
 
-function getProdutoStatus(p) {
-  const s = String(p?.status || 'ativo').trim().toLowerCase();
-  return s === 'inativo' ? 'inativo' : 'ativo';
-}
-
-function isProdutoInativo(p) {
-  return getProdutoStatus(p) === 'inativo';
-}
-
 function renderProdutos() {
   const prods = cache.produtos;
   const stocks = getAllStocks();
-  const search = document.getElementById('search-produtos')?.value.toLowerCase().trim()||'';
+  const search = document.getElementById('search-produtos')?.value.toLowerCase()||'';
   const showInactive = document.getElementById('toggle-inativos')?.checked || false;
-  const totalGeral = prods.length;
-  const totalInativos = prods.filter(isProdutoInativo).length;
-  const totalAtivos = totalGeral - totalInativos;
   const filtered = prods.filter(p =>
-    (showInactive || !isProdutoInativo(p)) &&
+    (showInactive || p.status !== 'inativo') &&
     (!activeCategFilter || p.cat===activeCategFilter) &&
-    (!search || (p.ref||'').toLowerCase().includes(search) || (p.nome||'').toLowerCase().includes(search))
+    (!search || p.ref.toLowerCase().includes(search) || p.nome.toLowerCase().includes(search))
   );
   const isAdmin = currentUser.role==='admin';
 
+  // Contagem: total sempre só ativos; filtered pode incluir inativos se toggle marcado
   const countEl = document.getElementById('produtos-count');
   if(countEl) {
-    const resumoBase = `${totalGeral} produto${totalGeral!==1?'s':''} no total · ${totalAtivos} ativo${totalAtivos!==1?'s':''} · ${totalInativos} inativo${totalInativos!==1?'s':''}`;
-    countEl.textContent = filtered.length === totalGeral && showInactive && !activeCategFilter && !search
-      ? resumoBase
-      : `${filtered.length} exibido${filtered.length!==1?'s':''} · ${resumoBase}`;
+    const totalAtivos = cache.produtos.filter(p => p.status !== 'inativo').length;
+    const totalInativos = cache.produtos.filter(p => p.status === 'inativo').length;
+    if(filtered.length === 0) {
+      countEl.textContent = 'Nenhum produto encontrado';
+    } else if(search || activeCategFilter) {
+      countEl.textContent = `${filtered.length} de ${totalAtivos} produto${totalAtivos!==1?'s':''}`;
+    } else if(showInactive) {
+      countEl.textContent = `${totalAtivos} ativo${totalAtivos!==1?'s':''} + ${totalInativos} inativo${totalInativos!==1?'s':''}`;
+    } else {
+      countEl.textContent = `${totalAtivos} produto${totalAtivos!==1?'s':''}`;
+    }
   }
 
   const tbody = document.getElementById('tbody-produtos');
@@ -3155,7 +3151,7 @@ function renderProdutos() {
       <td style="font-weight:600">${fmtBRL(p.venda)}</td>
       <td><span style="color:var(--success);font-weight:600">${margin(p)}</span></td>
       <td><span class="stock-pill ${qty(p)===0?'zero':qty(p)<=2?'low':'ok'}">${qty(p)===0?'⚠️ ':''} ${qty(p)} un</span></td>
-      <td><span class="badge badge-${getProdutoStatus(p)}">${getProdutoStatus(p)}</span></td>
+      <td><span class="badge badge-${p.status}">${p.status}</span></td>
       <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:5px">
           <button class="btn btn-outline btn-sm" onclick="viewProduto('${p.ref}')" title="Ver detalhes">👁</button>
@@ -3318,7 +3314,7 @@ function openProductModal(ref=null) {
     document.getElementById('p-custo').value = p.custo;
     document.getElementById('p-mult').value = p.mult||defaultMult;
     document.getElementById('p-venda').value = p.venda;
-    document.getElementById('p-status').value = getProdutoStatus(p);
+    document.getElementById('p-status').value = p.status;
     if(p.foto) { tempMainPhoto=p.foto; renderPhotoPreview(); }
     if(p.galeria && p.galeria.length) { tempGallery=[...p.galeria]; renderGalleryPreview(); }
     if(p.referencias_urls && p.referencias_urls.length) { tempRefs=[...p.referencias_urls]; renderRefsPreview(); }
@@ -3571,7 +3567,7 @@ function renderEstoque() {
 
   const stocks = getAllStocks();
 
-  let prods = cache.produtos.filter(p => !isProdutoInativo(p));
+  let prods = cache.produtos.filter(p => p.status !== 'inativo');
 
   // Filtro categoria
   if(filterCat) prods = prods.filter(p => p.cat === filterCat);
@@ -3594,7 +3590,7 @@ function renderEstoque() {
   // Atualizar contador
   const countEl = document.getElementById('estoque-count');
   if(countEl) {
-    const total = cache.produtos.filter(p => !isProdutoInativo(p)).length;
+    const total = cache.produtos.filter(p => p.status !== 'inativo').length;
     countEl.textContent = prods.length < total
       ? `${prods.length} de ${total} produtos`
       : `${total} produtos`;
@@ -3738,7 +3734,7 @@ function updateVendaProduct() {
   const p = cache.produtos.find(x=>x.ref===ref);
   const infoEl = document.getElementById('v-product-info');
   if(p) {
-    if(isProdutoInativo(p)) {
+    if(p.status === 'inativo') {
       infoEl.style.display='block';
       infoEl.style.background='rgba(192,57,43,0.08)';
       infoEl.innerHTML = `<span style="color:var(--danger)">⚠️ Produto <strong>${p.nome}</strong> está inativo — não é possível registrar venda.</span>`;
@@ -3786,7 +3782,7 @@ async function saveVenda() {
 
   const p = cache.produtos.find(x=>x.ref===ref);
   if(!p) { toast('Produto não encontrado: '+ref, 'error'); return; }
-  if(isProdutoInativo(p)) { toast('Produto inativo — não é possível registrar venda', 'error'); return; }
+  if(p.status === 'inativo') { toast('Produto inativo — não é possível registrar venda', 'error'); return; }
 
   // Checagem de estoque local (pré-validação — servidor confirma com lock)
   const stock = getStockByRef(ref);
@@ -4141,7 +4137,7 @@ function _distGetDates() {
 
 function renderDistribuidor() {
   const { ini: iniDate, fim: fimDate, label } = _distGetDates();
-  const allProds = cache.produtos.filter(p => !isProdutoInativo(p));
+  const allProds = cache.produtos.filter(p => p.status !== 'inativo');
   const prods    = _distCat ? allProds.filter(p => p.cat === _distCat) : allProds;
   const movs     = cache.movimentacoes;
   const vendas   = cache.vendas;
@@ -4583,7 +4579,7 @@ async function salvarCategoria() {
 }
 
 async function excluirCategoria(slug, nome) {
-  const emUso = cache.produtos.some(p => p.cat === slug && !isProdutoInativo(p));
+  const emUso = cache.produtos.some(p => p.cat === slug && p.status !== 'inativo');
   if(emUso) {
     toast(`⚠️ A categoria "${nome}" está em uso por produtos ativos. Mova os produtos antes de excluir.`, 'error', 6000);
     return;
@@ -4652,7 +4648,7 @@ function switchCfgTab(tab) {
 // ── Estatísticas do banco ─────────────────────────────────────
 function atualizarDbStats() {
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('db-count-produtos', cache.produtos.length);
+  el('db-count-produtos', cache.produtos.filter(p => p.status !== 'inativo').length);
   el('db-count-vendas',   cache.vendas.length);
   el('db-count-movs',     cache.movimentacoes.length);
 }
@@ -4820,7 +4816,7 @@ async function fazerBackup(tipo = 'automatico') {
       vendas:         cache.vendas,
       config:         cache.config ? [cache.config] : [],
       resumo: {
-        produtos:      cache.produtos.length,
+        produtos:      cache.produtos.filter(p => p.status !== 'inativo').length,
         movimentacoes: cache.movimentacoes.length,
         vendas:        cache.vendas.length,
         gerado_em:     new Date().toISOString()
