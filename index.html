@@ -1509,7 +1509,12 @@ textarea.field-input { resize: vertical; min-height: 80px; }
       <div class="card">
         <div class="card-header">
           <span class="card-title">Histórico de Vendas</span>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div id="vendas-selecao-toolbar" style="display:none;align-items:center;gap:8px">
+              <span id="vendas-sel-count" style="font-size:13px;font-weight:600;color:var(--charcoal)"></span>
+              <button class="btn btn-danger btn-sm" onclick="abrirModalDevolucaoMassa()">↩️ Registrar Devolução</button>
+              <button class="btn btn-outline btn-sm" onclick="limparSelecaoVendas()">✕ Cancelar</button>
+            </div>
             <input type="month" class="field-input" id="filter-mes-venda" style="width:160px" onchange="renderVendas()">
           </div>
         </div>
@@ -1517,6 +1522,8 @@ textarea.field-input { resize: vertical; min-height: 80px; }
           <table>
             <thead>
               <tr>
+                <th style="width:36px"><input type="checkbox" id="venda-check-all" onchange="toggleTodosVendas(this.checked)"
+                  style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer"></th>
                 <th>#</th>
                 <th>Data</th>
                 <th>Produto</th>
@@ -2318,6 +2325,39 @@ textarea.field-input { resize: vertical; min-height: 80px; }
     <div class="modal-body" id="modal-acerto-detalhe-body"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-acerto-detalhe')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DEVOLUÇÃO EM MASSA -->
+<div class="modal-overlay" id="modal-devolucao-massa">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title">↩️ Registrar Devolução em Massa</span>
+      <button class="modal-close" onclick="closeModal('modal-devolucao-massa')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div style="background:rgba(192,57,43,0.05);border:1px solid rgba(192,57,43,0.2);border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:var(--charcoal-soft)">
+        ⚠️ As vendas selecionadas serão <strong>canceladas</strong> e o estoque de cada peça será <strong>devolvido automaticamente</strong>.
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--silver);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
+        Vendas a devolver (<span id="dev-qtd-sel">0</span>)
+      </div>
+      <div id="dev-lista-vendas" style="max-height:220px;overflow-y:auto;border:1px solid var(--cream-dark);border-radius:10px;margin-bottom:18px"></div>
+
+      <div class="field-group">
+        <label class="field-label">Motivo da devolução</label>
+        <input type="text" class="field-input" id="dev-motivo"
+          placeholder="Ex: Peças paradas, sem giro, devolução para distribuidor...">
+        <span class="field-hint">Obrigatório — ficará registrado no histórico de cada venda.</span>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-devolucao-massa')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirmar-devolucao" onclick="confirmarDevolucaoMassa()">↩️ Confirmar Devolução</button>
     </div>
   </div>
 </div>
@@ -3698,8 +3738,12 @@ function renderVendas() {
     const custo   = v.custo || v.custo_unit  || 0;
     const canal   = (v.canal||'').toLowerCase();
     return `<tr style="${isCanceled?'opacity:0.55;text-decoration:line-through':''}">
+      <td onclick="event.stopPropagation()">
+        ${!isCanceled && currentUser.role==='admin' ? `<input type="checkbox" class="venda-check" data-id="${v.id}"
+          onchange="atualizarSelecaoVendas()"
+          style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">` : ''}
+      </td>
       <td style="font-family:monospace;font-size:12px;color:var(--silver)">#${String(filtered.length-i).padStart(3,'0')}</td>
-      <td>${fmtDate(v.data)}</td>
       <td><div class="product-cell">
         <div class="product-thumb">${getCatEmoji(p.cat)}</div>
         <div><div class="product-name">${p.nome||v.ref}</div><div class="product-ref">${v.ref}</div></div>
@@ -3719,6 +3763,9 @@ function renderVendas() {
       </td>
     </tr>`;
   }).join('');
+
+  // Resetar toolbar de seleção ao re-renderizar
+  atualizarSelecaoVendas();
 }
 
 function openVendaModal(ref=null) {
@@ -3836,6 +3883,115 @@ async function saveVenda() {
 }
 
 // Abre modal de cancelamento (substitui deleteVenda)
+// ═══════════════════════════════════════════════════════
+// DEVOLUÇÃO EM MASSA
+// ═══════════════════════════════════════════════════════
+
+function _getVendasSelecionadas() {
+  return [...document.querySelectorAll('.venda-check:checked')].map(el => el.dataset.id);
+}
+
+function atualizarSelecaoVendas() {
+  const selecionados = _getVendasSelecionadas();
+  const toolbar = document.getElementById('vendas-selecao-toolbar');
+  const countEl = document.getElementById('vendas-sel-count');
+  const checkAll = document.getElementById('venda-check-all');
+  const totalChecks = document.querySelectorAll('.venda-check').length;
+
+  if(toolbar) toolbar.style.display = selecionados.length > 0 ? 'flex' : 'none';
+  if(countEl) countEl.textContent = `${selecionados.length} selecionada${selecionados.length!==1?'s':''}`;
+  if(checkAll) checkAll.indeterminate = selecionados.length > 0 && selecionados.length < totalChecks;
+  if(checkAll) checkAll.checked = totalChecks > 0 && selecionados.length === totalChecks;
+}
+
+function toggleTodosVendas(checked) {
+  document.querySelectorAll('.venda-check').forEach(el => el.checked = checked);
+  atualizarSelecaoVendas();
+}
+
+function limparSelecaoVendas() {
+  document.querySelectorAll('.venda-check').forEach(el => el.checked = false);
+  const checkAll = document.getElementById('venda-check-all');
+  if(checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
+  atualizarSelecaoVendas();
+}
+
+function abrirModalDevolucaoMassa() {
+  const ids = _getVendasSelecionadas();
+  if(!ids.length) { toast('Selecione ao menos uma venda', 'error'); return; }
+
+  const vendas = ids.map(id => cache.vendas.find(v => v.id === id)).filter(Boolean);
+
+  document.getElementById('dev-qtd-sel').textContent = vendas.length;
+  document.getElementById('dev-motivo').value = '';
+
+  const lista = document.getElementById('dev-lista-vendas');
+  lista.innerHTML = vendas.map(v => {
+    const prod = cache.produtos.find(p => p.ref === v.ref);
+    const nome = prod ? prod.nome : v.ref;
+    const valor = v.valor || v.valor_total || 0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--cream-dark);font-size:13px">
+      <span style="font-size:16px">${getCatEmoji(prod?.cat)}</span>
+      <div style="flex:1">
+        <div style="font-weight:600;color:var(--charcoal)">${nome}</div>
+        <div style="font-size:11px;color:var(--silver)">${v.ref} · ${fmtDate(v.data)} · ${v.cliente||'—'}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700;color:var(--danger)">${fmtBRL(valor)}</div>
+        <div style="font-size:11px;color:var(--silver)">${v.canal||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  openModal('modal-devolucao-massa');
+}
+
+async function confirmarDevolucaoMassa() {
+  const ids = _getVendasSelecionadas();
+  const motivo = document.getElementById('dev-motivo').value.trim();
+
+  if(!motivo) { toast('Informe o motivo da devolução', 'error'); return; }
+  if(!ids.length) { toast('Nenhuma venda selecionada', 'error'); return; }
+
+  const btn = document.getElementById('btn-confirmar-devolucao');
+  btn.disabled = true; btn.textContent = '⏳ Processando...';
+
+  let ok = 0, erros = 0;
+  try {
+    showLoading(true);
+    // Cancelar cada venda em sequência usando a RPC existente
+    for(const id of ids) {
+      try {
+        await supa.rpc('cancelar_venda', {
+          p_venda_id: id,
+          p_motivo:   motivo,
+          p_user_id:  currentUser?.id || null
+        });
+        ok++;
+      } catch(e) {
+        console.warn(`Erro ao cancelar venda ${id}:`, e.message);
+        erros++;
+      }
+    }
+
+    await loadAll();
+    closeModal('modal-devolucao-massa');
+    limparSelecaoVendas();
+    refreshAllPages();
+
+    if(erros === 0) {
+      toast(`✅ ${ok} devolução${ok!==1?'ões':''} registrada${ok!==1?'s':''}! Estoque atualizado.`, 'success', 5000);
+    } else {
+      toast(`⚠️ ${ok} OK · ${erros} com erro. Verifique o histórico.`, 'warning', 6000);
+    }
+  } catch(e) {
+    toast('Erro ao processar devoluções: ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+    btn.disabled = false; btn.textContent = '↩️ Confirmar Devolução';
+  }
+}
+
 function cancelarVenda(id) {
   const v = cache.vendas.find(x=>x.id===id);
   if(!v) { toast('Venda não encontrada', 'error'); return; }
